@@ -121,3 +121,40 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'NorthTeam 工作台')
         self.assertContains(response, '登录')
+
+    def test_vue_session_api_returns_anonymous_navigation(self):
+        response = self.client.get('/api/session/')
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['ok'])
+        self.assertFalse(payload['data']['authenticated'])
+        self.assertEqual([item['key'] for item in payload['data']['features']], ['overview'])
+
+    def test_vue_login_api_returns_member_navigation(self):
+        self.user_in_group('vue_member', '正式成员')
+
+        response = self.client.post(
+            '/api/login/',
+            data=json.dumps({'username': 'vue_member', 'password': 'pass12345'}),
+            content_type='application/json',
+        )
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['data']['authenticated'])
+        self.assertEqual(payload['data']['username'], 'vue_member')
+        self.assertIn('tools', [item['key'] for item in payload['data']['features']])
+
+    def test_vue_tools_api_respects_permissions(self):
+        denied = self.client.get('/api/tools/')
+        self.assertEqual(denied.status_code, 403)
+
+        self.user_in_group('vue_member_tools', '正式成员')
+        self.client.login(username='vue_member_tools', password='pass12345')
+        response = self.client.get('/api/tools/')
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['tools'][0]['key'], 'bondreminder')

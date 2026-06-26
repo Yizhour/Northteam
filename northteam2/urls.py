@@ -8,6 +8,7 @@ from dashboard.admin_views import access_control
 from dashboard.auth_views import WorkspaceLoginView
 
 urlpatterns = [
+    path('api/', include('dashboard.api_urls')),
     path('', include('dashboard.urls')),
     path('tools/bond-reminder/', include('tools.bondreminder.django_app.urls')),
     path('accounts/login/', WorkspaceLoginView.as_view(), name='login'),

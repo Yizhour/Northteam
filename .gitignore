@@ -8,6 +8,11 @@ __pycache__/
 venv/
 env/
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.npm-cache/
+
 # Django local state
 db.sqlite3
 staticfiles/
