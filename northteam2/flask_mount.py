@@ -14,7 +14,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-BOND_REMINDER_DIR = BASE_DIR / '付息兑付提醒'
+INTERNAL_TOOLS_DIR = BASE_DIR / 'tools'
+BOND_REMINDER_DIR = INTERNAL_TOOLS_DIR / 'bondreminder'
 
 if str(BOND_REMINDER_DIR) not in sys.path:
     sys.path.insert(0, str(BOND_REMINDER_DIR))

@@ -14,19 +14,19 @@ staticfiles/
 media/
 *.log
 
-# Bond reminder runtime data
-付息兑付提醒/data/
-付息兑付提醒/uploads/*
-!付息兑付提醒/uploads/.gitkeep
-付息兑付提醒/outputs/*
-!付息兑付提醒/outputs/.gitkeep
-付息兑付提醒/logs/*
-!付息兑付提醒/logs/.gitkeep
+# Internal tool runtime data
+tools/bondreminder/data/
+tools/bondreminder/uploads/*
+!tools/bondreminder/uploads/.gitkeep
+tools/bondreminder/outputs/*
+!tools/bondreminder/outputs/.gitkeep
+tools/bondreminder/logs/*
+!tools/bondreminder/logs/.gitkeep
 
 # Local environment files
 .env
 .env.*
-!付息兑付提醒/.env.example
+!tools/bondreminder/.env.example
 
 # Editor and OS files
 .idea/
