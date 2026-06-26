@@ -3,11 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BondReminder Pro Web</title>
+  <title>付息兑付提醒 | NorthTeam 工作台</title>
   <link rel="icon" href="{{ url_for('static', filename='img/icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
+  <header class="nt-topbar">
+    <a class="nt-brand" href="/">
+      <span class="nt-brand-mark">NT</span>
+      <span class="nt-brand-text">NorthTeam 工作台</span>
+    </a>
+    <nav class="nt-nav" aria-label="主导航">
+      <a class="nt-nav-link" href="/">概况</a>
+      <a class="nt-nav-link" href="/projects/">项目空间</a>
+      <a class="nt-nav-link active" href="/tools/">高效工具箱</a>
+      <a class="nt-nav-link" href="/info/">常用信息</a>
+      <a class="nt-nav-link" href="/files/">文件共享空间</a>
+      <a class="nt-nav-link" href="/mistakes/">错题本</a>
+      <a class="nt-nav-link" href="/interns/">实习生登记</a>
+    </nav>
+    <a class="nt-admin-link" href="/admin/">Admin</a>
+  </header>
+
+  <section class="nt-subbar">
+    <div>
+      <a class="nt-breadcrumb" href="/tools/">高效工具箱</a>
+      <span class="nt-breadcrumb-separator">/</span>
+      <span>付息兑付提醒</span>
+    </div>
+    <a class="nt-back-link" href="/tools/">返回工具箱</a>
+  </section>
+
   <header class="app-header">
     <button id="systemTitle" class="title-button">债券付息兑付智能提醒系统</button>
     <div class="header-actions">

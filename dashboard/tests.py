@@ -45,6 +45,16 @@ class DashboardPageTests(TestCase):
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['status'], 'running')
 
+    def test_bond_reminder_page_uses_workspace_shell(self):
+        response = self.client.get('/tools/bond-reminder/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'nt-topbar')
+        self.assertContains(response, 'NorthTeam 工作台')
+        self.assertContains(response, '高效工具箱')
+        self.assertContains(response, 'systemTitle')
+        self.assertContains(response, 'sharedSettingsBtn')
+
     def test_admin_login_is_available(self):
         response = self.client.get(reverse('admin:index'))
 
