@@ -51,6 +51,19 @@ def home(request):
     return render(request, 'dashboard/home.html', context)
 
 
+def tools(request):
+    """Render the toolbox landing page with integrated internal tools."""
+    context = _base_context('高效工具箱')
+    context['tools'] = [
+        {
+            'title': '付息兑付提醒',
+            'description': '进入债券付息、兑付、每日自查和提醒任务工具。',
+            'url_name': 'bond_reminder',
+        }
+    ]
+    return render(request, 'dashboard/tools.html', context)
+
+
 def placeholder(request, page_title):
     """Render a shared placeholder page for modules that will be built later."""
     context = _base_context(page_title)

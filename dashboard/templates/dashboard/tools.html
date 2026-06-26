@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}高效工具箱 | NorthTeam 工作台{% endblock %}
+
+{% block content %}
+<section class="page-heading compact-heading">
+    <p class="eyebrow">Tools</p>
+    <h1>高效工具箱</h1>
+    <p class="heading-text">集中放置团队内部常用效率工具，当前已接入付息兑付提醒。</p>
+</section>
+
+<section class="tool-grid" aria-label="工具列表">
+    {% for tool in tools %}
+        <article class="tool-card">
+            <div>
+                <h2>{{ tool.title }}</h2>
+                <p>{{ tool.description }}</p>
+            </div>
+            <a class="tool-action" href="{% url tool.url_name %}">进入工具</a>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

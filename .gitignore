@@ -14,9 +14,19 @@ staticfiles/
 media/
 *.log
 
+# Bond reminder runtime data
+付息兑付提醒/data/
+付息兑付提醒/uploads/*
+!付息兑付提醒/uploads/.gitkeep
+付息兑付提醒/outputs/*
+!付息兑付提醒/outputs/.gitkeep
+付息兑付提醒/logs/*
+!付息兑付提醒/logs/.gitkeep
+
 # Local environment files
 .env
 .env.*
+!付息兑付提醒/.env.example
 
 # Editor and OS files
 .idea/

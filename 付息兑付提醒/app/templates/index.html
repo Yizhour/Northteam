@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BondReminder Pro Web</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/icon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <header class="app-header">
+    <button id="systemTitle" class="title-button">债券付息兑付智能提醒系统</button>
+    <div class="header-actions">
+      <button id="sharedSettingsBtn">发件箱设置</button>
+      <button id="refreshBtn">刷新</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="bondSystem" class="system-view active">
+      <nav class="tabs" aria-label="债券系统功能">
+        <button class="tab active" data-tab="dataTab">1. 数据导入与预览</button>
+        <button class="tab" data-tab="columnsTab">2. 关键列与颜色配置</button>
+        <button class="tab" data-tab="scheduleTab">3. 发送策略配置</button>
+        <button class="tab" data-tab="contactsTab">4. 通讯录</button>
+        <button class="tab" data-tab="tasksTab">5. 自定义发送任务</button>
+        <button class="tab" data-tab="logsTab">6. 运行日志</button>
+      </nav>
+
+      <section id="dataTab" class="tab-panel active">
+        <div class="toolbar">
+          <label class="file-picker">
+            <input id="bondFile" type="file" accept=".xlsx,.xls,.csv">
+            <span>选择 Excel/CSV</span>
+          </label>
+          <label>表头所在行号 <input id="headerRow" type="number" min="0" max="20" value="0"></label>
+          <button id="uploadBondBtn" class="primary">上传并缓存</button>
+          <button id="refreshPreviewBtn">刷新预览</button>
+        </div>
+        <div class="status-line" id="bondPath"></div>
+        <div class="table-wrap">
+          <table id="previewTable"></table>
+        </div>
+      </section>
+
+      <section id="columnsTab" class="tab-panel">
+        <p class="hint">勾选“监控”后该列会被视为日期列；短信文本用于每日短信显示；展示决定该列是否出现在周报表格。</p>
+        <div class="table-wrap">
+          <table id="columnsTable"></table>
+        </div>
+      </section>
+
+      <section id="scheduleTab" class="tab-panel">
+        <div class="split">
+          <section class="panel">
+            <h2>功能一：每周报表（团队）</h2>
+            <div class="form-grid">
+              <label class="inline"><input id="weeklyEnabled" type="checkbox"> 启用周报功能</label>
+              <label>周报触发时间 <input id="weeklyTime" type="time"></label>
+              <label>发送日
+                <select id="scheduleDay">
+                  <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+                  <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+                </select>
+              </label>
+              <label class="wide">周报邮件标题 <input id="emailSubject" type="text"></label>
+              <label class="wide">周报开篇语 <textarea id="emailIntro" rows="3"></textarea></label>
+            </div>
+            <div class="toolbar">
+              <button id="addReceiverBtn">添加收件人</button>
+              <button id="importWeeklyReceiversBtn" type="button">从通讯录导入</button>
+            </div>
+            <div class="table-wrap small">
+              <table id="receiversTable"></table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>功能二：每日自查（个人）</h2>
+            <div class="form-grid">
+              <label class="inline"><input id="dailyEnabled" type="checkbox"> 启用每日自查功能</label>
+              <label>日报触发时间 <input id="dailyTime" type="time"></label>
+              <label>姓名所在列 <select id="contactNameCol"></select></label>
+              <label>手机所在列 <select id="contactPhoneCol"></select></label>
+              <label class="wide">单个事项模板 <input id="dailyTemplate" type="text"></label>
+              <label class="wide">短信开篇语 <input id="dailyIntro" type="text"></label>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="contactsTab" class="tab-panel">
+        <div class="toolbar">
+          <button id="addContactBtn">添加联系人</button>
+          <button id="saveContactsBtn" class="primary">保存通讯录</button>
+        </div>
+        <div class="table-wrap">
+          <table id="contactsTable"></table>
+        </div>
+      </section>
+
+      <section id="tasksTab" class="tab-panel">
+        <div class="toolbar">
+          <button id="addTaskBtn" class="primary">添加任务</button>
+        </div>
+        <div class="table-wrap">
+          <table id="tasksTable"></table>
+        </div>
+      </section>
+
+      <section id="logsTab" class="tab-panel">
+        <div class="toolbar">
+          <button id="runManualBtn" class="success">立即运行（测试）</button>
+          <button id="runWeeklyBtn">运行周报</button>
+          <button id="runDailyBtn">运行日报</button>
+          <button id="clearLogsBtn" class="danger">清空日志</button>
+        </div>
+        <pre id="logBox" class="log-box"></pre>
+      </section>
+    </section>
+
+    <section id="customerSystem" class="system-view">
+      <div class="customer-topbar">
+        <button id="backBondBtn">返回债券系统</button>
+      </div>
+      <nav class="tabs customer-tabs" aria-label="客户管理系统功能">
+        <button class="tab customer-tab active" data-tab="customerListTab">1. 客户列表</button>
+        <button class="tab customer-tab" data-tab="customerBirthdayTab">2. 生日提醒配置</button>
+        <button class="tab customer-tab" data-tab="customerLogsTab">3. 运行日志</button>
+      </nav>
+
+      <section id="customerListTab" class="tab-panel customer-tab-panel active">
+        <div class="toolbar">
+          <label class="file-picker">
+            <input id="customerFile" type="file" accept=".xlsx,.xls,.csv">
+            <span>导入客户 Excel/CSV</span>
+          </label>
+          <button id="addCustomerColumnBtn">添加列</button>
+          <button id="addCustomerRowBtn">添加行</button>
+        </div>
+        <div id="identityDropArea" class="drop-area" tabindex="0">
+          <input id="identityFile" type="file" accept=".png,.jpg,.jpeg,.bmp,.webp,.pdf">
+          <strong>拖入身份证图片或 PDF，或点击选择文件</strong>
+          <span>支持 JPG、JPEG、PNG、BMP、WebP、PDF</span>
+          <span>识别完成后会自动写入客户表当前数据</span>
+        </div>
+        <div id="ocrResult" class="status-line"></div>
+        <div class="table-wrap customer-table-wrap">
+          <table id="customerTable"></table>
+        </div>
+      </section>
+
+      <section id="customerBirthdayTab" class="tab-panel customer-tab-panel">
+        <section class="panel">
+          <h2>生日祝福与订单需求</h2>
+          <div class="form-grid">
+            <label class="inline"><input id="birthdayEnabled" type="checkbox"> 启用生日自动提醒</label>
+            <label>手机号列 <select id="birthdayPhoneCol"></select></label>
+            <label>生日列 <select id="birthdayDateCol"></select></label>
+            <label>发送时间 <input id="birthdaySendTime" type="time"></label>
+            <label class="wide">客户祝福 <textarea id="birthdayTemplate" rows="3"></textarea></label>
+            <label>订单联系人 <input id="merchantPhone" type="text"></label>
+            <label class="wide">订单内容 <textarea id="merchantTemplate" rows="3"></textarea></label>
+          </div>
+          <button id="runBirthdayBtn">立即检查生日提醒</button>
+        </section>
+      </section>
+
+      <section id="customerLogsTab" class="tab-panel customer-tab-panel">
+        <div class="toolbar">
+          <button id="refreshCustomerLogsBtn">刷新日志</button>
+          <button id="clearCustomerLogsBtn" class="danger">清空日志</button>
+        </div>
+        <pre id="customerLogBox" class="log-box"></pre>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="sharedSettingsDialog">
+    <form method="dialog" id="sharedSettingsForm">
+      <h2>共享设置</h2>
+      <div class="form-grid">
+        <label>邮箱账号 <input id="senderEmail" type="email" placeholder="your_email@163.com"></label>
+        <label>授权码 <input id="authCode" type="password" placeholder="留空保持原授权码"></label>
+        <label class="inline wide"><input id="authExpiryEnabled" type="checkbox"> 启用授权码过期提醒</label>
+        <label>授权码生成日 <input id="authStartDate" type="date"></label>
+        <label>有效期天数 <input id="authValidityDays" type="number" min="30" max="720"></label>
+        <label>短信 JSON 格式邮箱中转收件人 <input id="dailyEmailReceiver" type="email"></label>
+        <label>任意两次发送最小间隔秒 <input id="sendInterval" type="number" min="30"></label>
+        <label>身份证识别 API Key <input id="customerApiKey" type="password" placeholder="留空保持原 API Key"></label>
+        <label>身份证识别模型 <input id="customerModel" type="text"></label>
+        <label class="wide">身份证识别接口 <input id="customerApiUrl" type="url"></label>
+      </div>
+      <details class="advanced-settings">
+        <summary>高级设置</summary>
+        <div class="form-grid">
+          <label>SMTP 优先接口
+            <select id="smtpPreferredMode">
+              <option value="auto">自动（记住上次成功接口）</option>
+              <option value="ssl465">SSL 465</option>
+              <option value="ssl994">SSL 994</option>
+              <option value="starttls587">STARTTLS 587</option>
+            </select>
+          </label>
+          <label>单个接口超时秒数 <input id="smtpTimeoutSeconds" type="number" min="3" max="60"></label>
+        </div>
+      </details>
+      <div class="toolbar compact">
+        <button id="importDailyReceiverBtn" type="button">从通讯录填入中转收件人</button>
+      </div>
+      <menu>
+        <button id="closeSharedSettingsBtn" type="button" class="primary">关闭</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="taskDialog">
+    <form method="dialog" id="taskForm">
+      <h2 id="taskDialogTitle">添加任务</h2>
+      <input type="hidden" id="taskIndex">
+      <div class="form-grid">
+        <label>任务名称 <input id="taskName" required></label>
+        <label>发送方式
+          <select id="taskSendType">
+            <option value="sms">短信发送</option>
+            <option value="email">邮件发送</option>
+          </select>
+        </label>
+        <label class="wide">邮件标题 <input id="taskSubject"></label>
+        <label class="wide">收件人/手机号（每行一个） <textarea id="taskReceivers" rows="4" required></textarea></label>
+        <div class="wide toolbar compact">
+          <button id="importTaskReceiversBtn" type="button">从通讯录导入收件人/手机号</button>
+        </div>
+        <label>发送策略
+          <select id="taskTimeType">
+            <option value="once">一次性定时发送</option>
+            <option value="weekly">每周定时发送</option>
+            <option value="daily">每天定时发送</option>
+          </select>
+        </label>
+        <label id="taskDateWrap">具体日期 <input id="taskDate" type="date"></label>
+        <label id="taskWeekWrap" class="wide">每周星期
+          <span class="weekday-row">
+            <label><input type="checkbox" value="周一">周一</label>
+            <label><input type="checkbox" value="周二">周二</label>
+            <label><input type="checkbox" value="周三">周三</label>
+            <label><input type="checkbox" value="周四">周四</label>
+            <label><input type="checkbox" value="周五">周五</label>
+            <label><input type="checkbox" value="周六">周六</label>
+            <label><input type="checkbox" value="周日">周日</label>
+          </span>
+        </label>
+        <label>具体时间 <input id="taskTime" type="time"></label>
+        <label class="wide">自定义内容 <textarea id="taskContent" rows="5"></textarea></label>
+      </div>
+      <menu>
+        <button id="cancelTaskBtn" type="button" value="cancel">取消</button>
+        <button id="saveTaskBtn" type="button" class="primary" value="default">保存</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="contactPickerDialog">
+    <form method="dialog">
+      <h2 id="contactPickerTitle">从通讯录导入</h2>
+      <div id="contactPickerBody" class="picker-body"></div>
+      <menu>
+        <button id="cancelContactPickerBtn" type="button">取消</button>
+        <button id="confirmContactPickerBtn" type="button" class="primary">导入</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+  <script>
+    window.BOND_REMINDER_BASE_PATH = "{{ request.script_root }}";
+  </script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

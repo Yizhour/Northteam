@@ -275,6 +275,45 @@ h2 {
     line-height: 1.7;
 }
 
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+}
+
+.tool-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 150px;
+    padding: 22px;
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-soft);
+}
+
+.tool-card p {
+    margin: 10px 0 0;
+    color: var(--color-muted);
+    line-height: 1.7;
+}
+
+.tool-action {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    color: #ffffff;
+    background: var(--color-navy);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.tool-action:hover {
+    background: var(--color-blue);
+}
+
 .status-dot {
     width: 10px;
     height: 10px;
@@ -306,6 +345,11 @@ h2 {
 
     .quick-grid {
         grid-template-columns: 1fr;
+    }
+
+    .tool-card {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }
 
