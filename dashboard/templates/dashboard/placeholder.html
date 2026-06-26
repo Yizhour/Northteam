@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} | NorthTeam 工作台{% endblock %}
+
+{% block content %}
+<section class="page-heading compact-heading">
+    <p class="eyebrow">Module Placeholder</p>
+    <h1>{{ page_title }}</h1>
+    <p class="heading-text">该模块已接入导航，业务功能将在后续迭代中逐步完善。</p>
+</section>
+
+<section class="placeholder-panel">
+    <div>
+        <span class="status-dot"></span>
+        <strong>{{ page_title }} 功能预留</strong>
+    </div>
+    <p>当前页面用于确认系统结构、路由和共用导航。后续可在此扩展列表、表单、权限和数据模型。</p>
+</section>
+{% endblock %}

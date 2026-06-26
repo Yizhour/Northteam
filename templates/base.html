@@ -1,0 +1,30 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}NorthTeam 工作台{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="{% url 'dashboard:home' %}" aria-label="NorthTeam 工作台首页">
+            <span class="brand-mark">NT</span>
+            <span class="brand-text">NorthTeam 工作台</span>
+        </a>
+        <nav class="main-nav" aria-label="主导航">
+            {% for item in nav_items %}
+                <a class="nav-link{% if item.label == active_nav %} active{% endif %}" href="{% url item.url_name %}">
+                    {{ item.label }}
+                </a>
+            {% endfor %}
+        </nav>
+        <a class="admin-link" href="{% url 'admin:index' %}">Admin</a>
+    </header>
+
+    <main class="page-shell">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

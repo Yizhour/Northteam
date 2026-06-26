@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}概况 | NorthTeam 工作台{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <p class="eyebrow">NorthTeam2</p>
+    <h1>团队内部管理概况</h1>
+    <p class="heading-text">面向团队日常协作、项目台账、资料归档和人员登记的内部工作台。</p>
+</section>
+
+<section class="summary-grid" aria-label="关键指标">
+    {% for card in summary_cards %}
+        <article class="metric-card">
+            <p>{{ card.label }}</p>
+            <strong>{{ card.value }}</strong>
+            <span>{{ card.hint }}</span>
+        </article>
+    {% endfor %}
+</section>
+
+<section class="content-grid">
+    <div class="panel">
+        <div class="panel-heading">
+            <h2>快捷入口</h2>
+            <span>Quick Access</span>
+        </div>
+        <div class="quick-grid">
+            {% for link in quick_links %}
+                <div class="quick-item">
+                    <strong>{{ link.label }}</strong>
+                    <span>{{ link.description }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-heading">
+            <h2>今日待办</h2>
+            <span>To-do</span>
+        </div>
+        <ul class="clean-list">
+            {% for todo in todos %}
+                <li>{{ todo }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="panel wide-panel">
+        <div class="panel-heading">
+            <h2>系统公告</h2>
+            <span>Notice</span>
+        </div>
+        <ul class="notice-list">
+            {% for announcement in announcements %}
+                <li>{{ announcement }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+{% endblock %}
