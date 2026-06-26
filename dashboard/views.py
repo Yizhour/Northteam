@@ -1,28 +1,29 @@
 from django.shortcuts import render
 
+from .decorators import feature_required
+from .permissions import features_for_user, is_super_admin
 
-NAV_ITEMS = [
-    {'label': '概况', 'url_name': 'dashboard:home'},
-    {'label': '项目空间', 'url_name': 'dashboard:projects'},
-    {'label': '高效工具箱', 'url_name': 'dashboard:tools'},
-    {'label': '常用信息', 'url_name': 'dashboard:info'},
-    {'label': '文件共享空间', 'url_name': 'dashboard:files'},
-    {'label': '错题本', 'url_name': 'dashboard:mistakes'},
-    {'label': '实习生登记', 'url_name': 'dashboard:interns'},
-]
+NAV_FEATURE_KEYS = {'overview', 'projects', 'tools', 'info', 'files', 'mistakes', 'interns'}
 
 
-def _base_context(active_nav):
+def base_context(request, active_nav):
     """Return shared layout data for every dashboard page."""
+    nav_items = [
+        {'label': feature.name, 'url_name': feature.url_name}
+        for feature in features_for_user(request.user)
+        if feature.key in NAV_FEATURE_KEYS and feature.url_name
+    ]
     return {
-        'nav_items': NAV_ITEMS,
+        'nav_items': nav_items,
         'active_nav': active_nav,
+        'can_manage_permissions': is_super_admin(request.user),
     }
 
 
+@feature_required('overview')
 def home(request):
     """Render the first dashboard page for the internal OA-style workspace."""
-    context = _base_context('概况')
+    context = base_context(request, '概况')
     context.update(
         {
             'summary_cards': [
@@ -51,9 +52,10 @@ def home(request):
     return render(request, 'dashboard/home.html', context)
 
 
+@feature_required('tools')
 def tools(request):
     """Render the toolbox landing page with integrated internal tools."""
-    context = _base_context('高效工具箱')
+    context = base_context(request, '高效工具箱')
     context['tools'] = [
         {
             'title': '付息兑付提醒',
@@ -66,6 +68,31 @@ def tools(request):
 
 def placeholder(request, page_title):
     """Render a shared placeholder page for modules that will be built later."""
-    context = _base_context(page_title)
+    context = base_context(request, page_title)
     context['page_title'] = page_title
     return render(request, 'dashboard/placeholder.html', context)
+
+
+@feature_required('projects')
+def projects(request):
+    return placeholder(request, '项目空间')
+
+
+@feature_required('info')
+def info(request):
+    return placeholder(request, '常用信息')
+
+
+@feature_required('files')
+def files(request):
+    return placeholder(request, '文件共享空间')
+
+
+@feature_required('mistakes')
+def mistakes(request):
+    return placeholder(request, '错题本')
+
+
+@feature_required('interns')
+def interns(request):
+    return placeholder(request, '实习生登记')

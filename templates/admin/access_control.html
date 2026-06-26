@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        <p>按功能和角色配置查看、使用、管理权限。保存后立即生效。</p>
+        <div class="module">
+            <table>
+                <thead>
+                    <tr>
+                        <th>功能</th>
+                        {% for role in roles %}
+                            <th>{{ role }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <th scope="row">{{ row.feature.name }}</th>
+                            {% for cell in row.cells %}
+                                <td>
+                                    <strong>{{ cell.role }}</strong><br>
+                                    {% for action in cell.actions %}
+                                        <label style="display:block; margin: 4px 0;">
+                                            <input type="checkbox" name="{{ action.name }}" {% if action.checked %}checked{% endif %}>
+                                            {{ action.label }}
+                                        </label>
+                                    {% endfor %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="submit-row">
+            <input type="submit" value="保存权限配置" class="default">
+        </div>
+    </form>
+</div>
+{% endblock %}

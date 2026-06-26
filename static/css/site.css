@@ -104,6 +104,97 @@ a {
     font-size: 13px;
 }
 
+.user-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+.user-name {
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.logout-form {
+    margin: 0;
+}
+
+.logout-button {
+    padding: 8px 12px;
+    color: rgba(255, 255, 255, 0.88);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.auth-body {
+    min-height: 100vh;
+    background: var(--color-bg);
+}
+
+.login-shell {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.login-panel {
+    width: min(420px, 100%);
+    padding: 28px;
+    background: #ffffff;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-soft);
+}
+
+.login-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.login-heading h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+}
+
+.login-heading p {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+.login-panel form {
+    display: grid;
+    gap: 14px;
+}
+
+.login-button {
+    padding: 11px 16px;
+    color: #ffffff;
+    background: var(--color-navy);
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+}
+
+.form-error {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    color: #9f1239;
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-radius: 6px;
+}
+
 .page-shell {
     width: min(1180px, calc(100% - 36px));
     margin: 0 auto;

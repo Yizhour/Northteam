@@ -110,6 +110,34 @@ body {
   font-size: 13px;
 }
 
+.nt-user-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.nt-user-name {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.nt-logout-form {
+  margin: 0;
+}
+
+.nt-logout-button {
+  padding: 8px 12px;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
 .nt-subbar {
   display: flex;
   align-items: center;

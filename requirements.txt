@@ -1,5 +1,5 @@
 Django>=5.2,<6.0
-Flask>=3.0,<4.0
+django-simpleui>=2025.1,<2027.0
 pandas>=2.0,<3.0
 openpyxl>=3.1,<4.0
 schedule>=1.2,<2.0

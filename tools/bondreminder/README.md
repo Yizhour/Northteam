@@ -6,12 +6,13 @@
 
 - 工具源码位置：`tools/bondreminder/`
 - Django 访问路径：`/tools/bond-reminder/`
-- Django 挂载入口：`northteam2/flask_mount.py`
-- 工具内部仍保留 Flask 应用结构，核心业务逻辑不迁移、不重写。
+- Django 入口：`tools/bondreminder/django_app/`
+- 工具核心业务逻辑保留在 `app/`，HTTP 适配层已改为 Django。
 
 ## 目录说明
 
-- `app/`：Flask 路由、业务逻辑、模板和静态资源。
+- `app/`：业务逻辑、模板和静态资源。
+- `django_app/`：Django URL、视图和权限适配层。
 - `data/`：运行时配置、通讯录、客户数据、债券缓存数据，本目录不提交到 Git。
 - `uploads/`：浏览器上传的 Excel、CSV、图片、PDF，本目录只提交 `.gitkeep`。
 - `outputs/`：预留输出目录，本目录只提交 `.gitkeep`。

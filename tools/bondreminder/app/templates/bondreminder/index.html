@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>付息兑付提醒 | NorthTeam 工作台</title>
-  <link rel="icon" href="{{ url_for('static', filename='img/icon.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="icon" href="{{ base_path }}/static/img/icon.png">
+  <link rel="stylesheet" href="{{ base_path }}/static/css/app.css">
 </head>
 <body>
   <header class="nt-topbar">
@@ -14,15 +14,27 @@
       <span class="nt-brand-text">NorthTeam 工作台</span>
     </a>
     <nav class="nt-nav" aria-label="主导航">
-      <a class="nt-nav-link" href="/">概况</a>
-      <a class="nt-nav-link" href="/projects/">项目空间</a>
-      <a class="nt-nav-link active" href="/tools/">高效工具箱</a>
-      <a class="nt-nav-link" href="/info/">常用信息</a>
-      <a class="nt-nav-link" href="/files/">文件共享空间</a>
-      <a class="nt-nav-link" href="/mistakes/">错题本</a>
-      <a class="nt-nav-link" href="/interns/">实习生登记</a>
+      {% for item in nav_items %}
+        <a class="nt-nav-link{% if item.label == active_nav %} active{% endif %}" href="{% url item.url_name %}">{{ item.label }}</a>
+      {% endfor %}
     </nav>
-    <a class="nt-admin-link" href="/admin/">Admin</a>
+    <div class="nt-user-actions">
+      {% if request.user.is_authenticated %}
+        <span class="nt-user-name">{{ request.user.get_username }}</span>
+        {% if can_manage_permissions %}
+          <a class="nt-admin-link" href="{% url 'access_control' %}">权限控制台</a>
+        {% endif %}
+        {% if request.user.is_staff %}
+          <a class="nt-admin-link" href="/admin/">Admin</a>
+        {% endif %}
+        <form class="nt-logout-form" method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="nt-logout-button" type="submit">退出</button>
+        </form>
+      {% else %}
+        <a class="nt-admin-link" href="{% url 'login' %}">登录</a>
+      {% endif %}
+    </div>
   </header>
 
   <section class="nt-subbar">
@@ -299,8 +311,8 @@
 
   <div id="toast" role="status"></div>
   <script>
-    window.BOND_REMINDER_BASE_PATH = "{{ request.script_root }}";
+    window.BOND_REMINDER_BASE_PATH = "{{ base_path }}";
   </script>
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ base_path }}/static/js/app.js"></script>
 </body>
 </html>

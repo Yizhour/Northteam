@@ -5,9 +5,8 @@ NorthTeam2 Django workspace.
 
 ## Structure
 
-- `bondreminder/`: Bond interest and redemption reminder tool. It remains a
-  Flask application internally and is mounted by Django at
-  `/tools/bond-reminder/`.
+- `bondreminder/`: Bond interest and redemption reminder tool. Its original
+  business logic is reused directly through Django views at `/tools/bond-reminder/`.
 
 ## Conventions
 

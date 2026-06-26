@@ -20,7 +20,23 @@
                 </a>
             {% endfor %}
         </nav>
-        <a class="admin-link" href="{% url 'admin:index' %}">Admin</a>
+        <div class="user-actions">
+            {% if request.user.is_authenticated %}
+                <span class="user-name">{{ request.user.get_username }}</span>
+                {% if can_manage_permissions %}
+                    <a class="admin-link" href="{% url 'access_control' %}">权限控制台</a>
+                {% endif %}
+                {% if request.user.is_staff %}
+                    <a class="admin-link" href="{% url 'admin:index' %}">Admin</a>
+                {% endif %}
+                <form class="logout-form" method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="logout-button" type="submit">退出</button>
+                </form>
+            {% else %}
+                <a class="admin-link" href="{% url 'login' %}">登录</a>
+            {% endif %}
+        </div>
     </header>
 
     <main class="page-shell">

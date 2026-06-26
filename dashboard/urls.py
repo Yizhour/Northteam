@@ -8,10 +8,10 @@ app_name = 'dashboard'
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('projects/', views.placeholder, {'page_title': '项目空间'}, name='projects'),
+    path('projects/', views.projects, name='projects'),
     path('tools/', views.tools, name='tools'),
-    path('info/', views.placeholder, {'page_title': '常用信息'}, name='info'),
-    path('files/', views.placeholder, {'page_title': '文件共享空间'}, name='files'),
-    path('mistakes/', views.placeholder, {'page_title': '错题本'}, name='mistakes'),
-    path('interns/', views.placeholder, {'page_title': '实习生登记'}, name='interns'),
+    path('info/', views.info, name='info'),
+    path('files/', views.files, name='files'),
+    path('mistakes/', views.mistakes, name='mistakes'),
+    path('interns/', views.interns, name='interns'),
 ]
