@@ -33,15 +33,15 @@
                 <h2 id="selectedInternName">请选择实习生</h2>
                 <span id="weekLabel"></span>
             </div>
-            {% if not intern_share_token %}
-                <div class="schedule-actions">
-                    <button class="icon-button" type="button" id="prevWeekBtn">‹</button>
-                    <button class="plain-button" type="button" id="currentWeekBtn">本周</button>
-                    <button class="icon-button" type="button" id="nextWeekBtn">›</button>
+            <div class="schedule-actions">
+                <button class="icon-button" type="button" id="prevWeekBtn">‹</button>
+                <button class="plain-button" type="button" id="currentWeekBtn">本周</button>
+                <button class="icon-button" type="button" id="nextWeekBtn">›</button>
+                {% if not intern_share_token %}
                     <button class="plain-button" type="button" id="leaveBtn" hidden>请假</button>
                     <button class="primary-button" type="button" id="workBtn" hidden>安排工作</button>
-                </div>
-            {% endif %}
+                {% endif %}
+            </div>
         </div>
         <div class="form-error" id="scheduleError" hidden></div>
         <div class="schedule-table-wrap">
@@ -490,19 +490,19 @@
             Math.max(selection.anchorEnd, selection.currentEnd),
         );
     });
-    if (!shareToken) $('prevWeekBtn').addEventListener('click', async () => {
+    $('prevWeekBtn').addEventListener('click', async () => {
         const date = parseDate(state.weekStart);
         date.setDate(date.getDate() - 7);
         state.weekStart = formatDate(date);
         await loadSchedule();
     });
-    if (!shareToken) $('nextWeekBtn').addEventListener('click', async () => {
+    $('nextWeekBtn').addEventListener('click', async () => {
         const date = parseDate(state.weekStart);
         date.setDate(date.getDate() + 7);
         state.weekStart = formatDate(date);
         await loadSchedule();
     });
-    if (!shareToken) $('currentWeekBtn').addEventListener('click', async () => {
+    $('currentWeekBtn').addEventListener('click', async () => {
         state.weekStart = mondayOf(new Date());
         await loadSchedule();
     });
