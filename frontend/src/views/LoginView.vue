@@ -3,7 +3,7 @@
     <div class="login-heading">
       <span class="brand-mark">NT</span>
       <div>
-        <h1>NorthTeam 工作台</h1>
+        <h1>NorthTeam2 工作台</h1>
         <p>请使用内部账号登录。</p>
       </div>
     </div>

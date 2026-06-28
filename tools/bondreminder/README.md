@@ -1,6 +1,6 @@
 # BondReminder
 
-付息兑付提醒工具，作为 NorthTeam 的内部工具挂载在 Django 项目中。
+付息兑付提醒工具，作为 NorthTeam2 的内部工具挂载在 Django 项目中。
 
 ## 当前集成方式
 
@@ -31,7 +31,7 @@
 
 ## 本地访问
 
-在项目根目录启动 NorthTeam：
+在项目根目录启动 NorthTeam2：
 
 ```powershell
 python manage.py runserver 127.0.0.1:8010

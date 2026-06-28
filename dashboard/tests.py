@@ -189,7 +189,7 @@ class DashboardPageTests(TestCase):
         response = self.client.get(reverse('login'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'NorthTeam 工作台')
+        self.assertContains(response, 'NorthTeam2 工作台')
         self.assertContains(response, '登录')
 
     def test_vue_session_api_returns_no_anonymous_navigation(self):

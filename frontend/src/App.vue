@@ -3,7 +3,7 @@
     <header class="topbar">
       <RouterLink class="brand" to="/">
         <span class="brand-mark">NT</span>
-        <span class="brand-text">NorthTeam 工作台</span>
+        <span class="brand-text">NorthTeam2 工作台</span>
       </RouterLink>
 
       <nav class="main-nav" aria-label="主导航">
