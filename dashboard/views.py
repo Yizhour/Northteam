@@ -1,5 +1,6 @@
 from django.shortcuts import render
 
+from .api_views import bond_reminder_overview
 from .decorators import feature_required
 from .permissions import features_for_user, is_super_admin
 
@@ -20,7 +21,6 @@ def base_context(request, active_nav):
     }
 
 
-@feature_required('overview')
 def home(request):
     """Render the first dashboard page for the internal OA-style workspace."""
     context = base_context(request, '概况')
@@ -47,6 +47,7 @@ def home(request):
                 'NorthTeam2 内部管理系统首版已初始化。',
                 '后续可逐步接入项目、文件、错题本等业务模块。',
             ],
+            'bond_reminder': bond_reminder_overview(),
         }
     )
     return render(request, 'dashboard/home.html', context)
@@ -95,4 +96,13 @@ def mistakes(request):
 
 @feature_required('interns')
 def interns(request):
-    return placeholder(request, '实习生登记')
+    context = base_context(request, '实习生登记')
+    context['intern_share_token'] = ''
+    return render(request, 'dashboard/interns.html', context)
+
+
+def intern_share(request, token):
+    context = base_context(request, '实习生工作安排')
+    context['intern_share_token'] = token
+    context['hide_chrome'] = True
+    return render(request, 'dashboard/interns.html', context)

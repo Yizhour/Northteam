@@ -32,6 +32,7 @@ tools/bondreminder/logs/*
 .env
 .env.*
 !tools/bondreminder/.env.example
+sql/
 
 # Editor and OS files
 .idea/

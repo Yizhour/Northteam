@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import App from './App.vue';
 import HomeView from './views/HomeView.vue';
+import InternScheduleView from './views/InternScheduleView.vue';
 import LoginView from './views/LoginView.vue';
 import PlaceholderView from './views/PlaceholderView.vue';
 import ToolsView from './views/ToolsView.vue';
@@ -16,7 +17,8 @@ const routes = [
   { path: '/info', component: PlaceholderView, props: { featureKey: 'info' } },
   { path: '/files', component: PlaceholderView, props: { featureKey: 'files' } },
   { path: '/mistakes', component: PlaceholderView, props: { featureKey: 'mistakes' } },
-  { path: '/interns', component: PlaceholderView, props: { featureKey: 'interns' } },
+  { path: '/interns', component: InternScheduleView },
+  { path: '/interns/share/:token', component: InternScheduleView, props: true },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 

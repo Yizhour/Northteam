@@ -14,4 +14,5 @@ urlpatterns = [
     path('files/', views.files, name='files'),
     path('mistakes/', views.mistakes, name='mistakes'),
     path('interns/', views.interns, name='interns'),
+    path('interns/share/<str:token>/', views.intern_share, name='intern_share'),
 ]

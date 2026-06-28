@@ -10,7 +10,7 @@ import pandas as pd
 
 from .logging_utils import append_log
 from .mailer import send_mail
-from .storage import read_table
+from .storage import has_bond_table, read_table
 
 
 class BondReminder:
@@ -37,17 +37,70 @@ class BondReminder:
         end_of_week = start_of_week + timedelta(days=6)
         return start_of_week, end_of_week
 
-    def _read_excel(self):
+    def _read_excel(self, log_errors=True):
         excel_path = self.config.get("excel_path")
         header_idx = self.config.get("header_row_index", 0)
-        if not excel_path or not os.path.exists(excel_path):
-            self.log("错误: 数据缓存文件不存在。请先上传或重新保存数据文件。")
+        if not excel_path or (not has_bond_table() and not os.path.exists(excel_path)):
+            if log_errors:
+                self.log("错误: 数据缓存文件不存在。请先上传或重新保存数据文件。")
             return None
         try:
             return read_table(excel_path, header=header_idx)
         except Exception as exc:
-            self.log(f"读取数据文件失败: {exc}")
+            if log_errors:
+                self.log(f"读取数据文件失败: {exc}")
             return None
+
+    def collect_events(self, start_date=None, end_date=None):
+        """Return reminder events without sending email or writing logs."""
+        target_cols = self.config.get("date_columns", [])
+        display_cols = self.config.get("display_columns", [])
+        if not target_cols:
+            return {"events": [], "display_columns": display_cols, "configured": False}
+
+        df = self._read_excel(log_errors=False)
+        if df is None:
+            return {"events": [], "display_columns": display_cols, "configured": False}
+
+        if start_date is None or end_date is None:
+            start_date, end_date = self.get_week_range()
+
+        valid_date_cols = [col for col in target_cols if col in df.columns]
+        valid_display_cols = [col for col in display_cols if col in df.columns]
+        if not valid_date_cols:
+            return {"events": [], "display_columns": valid_display_cols, "configured": False}
+
+        user_colors = self.config.get("column_colors", {})
+        events = []
+        for _, row in df.iterrows():
+            for date_col in valid_date_cols:
+                raw_date = row[date_col]
+                if pd.isna(raw_date) or str(raw_date).strip() in ["-", "", "nan"]:
+                    continue
+                dt = pd.to_datetime(raw_date, errors="coerce")
+                if pd.isna(dt):
+                    continue
+                event_date = dt.date()
+                if start_date <= event_date <= end_date:
+                    row_data = {}
+                    for display_col in valid_display_cols:
+                        val = row[display_col]
+                        row_data[display_col] = str(val) if not pd.isna(val) else ""
+                    events.append(
+                        {
+                            "date_str": str(event_date),
+                            "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][event_date.weekday()],
+                            "event_type": date_col,
+                            "color": user_colors.get(
+                                date_col,
+                                self.default_colors[valid_date_cols.index(date_col) % len(self.default_colors)],
+                            ),
+                            "display_data": row_data,
+                        }
+                    )
+
+        events.sort(key=lambda item: (item["date_str"], item["event_type"]))
+        return {"events": events, "display_columns": valid_display_cols, "configured": True}
 
     def run_weekly_check(self):
         self.logs = []
@@ -216,6 +269,11 @@ class BondReminder:
         today = datetime.now().date()
         self.log(f"扫描今日事件: {today}")
         grouped_events = {}
+        today_event_count = 0
+        missing_contact_count = 0
+        contact_columns_missing = [col for col in [col_name, col_phone] if col and col not in df.columns]
+        if contact_columns_missing:
+            self.log(f"警告: 表格中找不到联系人列：{', '.join(contact_columns_missing)}。")
 
         for _, row in df.iterrows():
             for date_col in target_cols:
@@ -228,12 +286,14 @@ class BondReminder:
                 if pd.isna(dt) or dt.date() != today:
                     continue
 
+                today_event_count += 1
                 name_val = str(row[col_name]) if col_name and col_name in df.columns and not pd.isna(row[col_name]) else "未知"
                 phone_val = str(row[col_phone]) if col_phone and col_phone in df.columns and not pd.isna(row[col_phone]) else ""
                 names = [name.strip() for name in name_val.split("&") if name.strip()]
                 phones = [phone.strip() for phone in phone_val.split("&") if phone.strip()]
                 min_len = min(len(names), len(phones))
                 if min_len == 0:
+                    missing_contact_count += 1
                     continue
 
                 display_text = sms_texts.get(date_col) or date_col
@@ -261,9 +321,18 @@ class BondReminder:
             daily_events_list.append({"message": message.rstrip(), "name": data["name"], "phone": phone})
 
         if daily_events_list:
+            if missing_contact_count:
+                self.log(f"今日检测到 {today_event_count} 条事项，其中 {missing_contact_count} 条缺少对接人姓名或手机号，已跳过。")
             self.send_daily_email(daily_events_list)
         else:
-            self.log("今日无事项，不发送每日提醒。")
+            if today_event_count:
+                self.log(
+                    f"今日检测到 {today_event_count} 条事项，但未生成每日提醒："
+                    f"{missing_contact_count or today_event_count} 条缺少对接人姓名或手机号。"
+                    f"请检查表格列【{col_name or '未配置'}】和【{col_phone or '未配置'}】。"
+                )
+            else:
+                self.log("今日无事项，不发送每日提醒。")
         return self.logs
 
     def send_daily_email(self, events_list):

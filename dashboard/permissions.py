@@ -8,13 +8,11 @@ from .models import Feature, FeatureAccess
 GROUP_SUPER_ADMIN = '超级管理员'
 GROUP_TEAM_LEAD = '团队负责人'
 GROUP_MEMBER = '正式成员'
-GROUP_INTERN = '实习生'
 
 ROLE_GROUPS = {
     FeatureAccess.ROLE_SUPER_ADMIN: GROUP_SUPER_ADMIN,
     FeatureAccess.ROLE_TEAM_LEAD: GROUP_TEAM_LEAD,
     FeatureAccess.ROLE_MEMBER: GROUP_MEMBER,
-    FeatureAccess.ROLE_INTERN: GROUP_INTERN,
 }
 
 ROLE_LABELS = dict(FeatureAccess.ROLE_CHOICES)
@@ -23,7 +21,6 @@ ROLE_ORDER = [
     FeatureAccess.ROLE_SUPER_ADMIN,
     FeatureAccess.ROLE_TEAM_LEAD,
     FeatureAccess.ROLE_MEMBER,
-    FeatureAccess.ROLE_INTERN,
     FeatureAccess.ROLE_ANONYMOUS,
 ]
 ACTION_ORDER = [
@@ -58,14 +55,7 @@ DEFAULT_ACCESS = {
         'info': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
         'files': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
         'mistakes': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
-        'interns': {FeatureAccess.ACTION_VIEW},
-    },
-    FeatureAccess.ROLE_INTERN: {
-        'overview': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
-        'tools': {FeatureAccess.ACTION_VIEW},
-        'bondreminder': {FeatureAccess.ACTION_VIEW},
-        'info': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
-        'mistakes': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
+        'interns': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
     },
     FeatureAccess.ROLE_ANONYMOUS: {
         'overview': {FeatureAccess.ACTION_VIEW},
@@ -113,8 +103,6 @@ def role_for_user(user):
         return FeatureAccess.ROLE_TEAM_LEAD
     if user.groups.filter(name=GROUP_MEMBER).exists():
         return FeatureAccess.ROLE_MEMBER
-    if user.groups.filter(name=GROUP_INTERN).exists():
-        return FeatureAccess.ROLE_INTERN
     return FeatureAccess.ROLE_ANONYMOUS
 
 

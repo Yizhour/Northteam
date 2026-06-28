@@ -5,6 +5,9 @@ import shutil
 from pathlib import Path
 
 import pandas as pd
+from django.apps import apps
+from django.conf import settings
+from django.db import DatabaseError, transaction
 
 from .config import (
     BOND_CACHE_FILE,
@@ -98,10 +101,159 @@ DEFAULT_CUSTOMER_SETTINGS = {
 
 DEFAULT_CUSTOMER_DATA = {"columns": [], "rows": []}
 
+STORE_CONFIG = "config"
+STORE_CONTACTS = "contacts"
+STORE_CUSTOMER_SETTINGS = "customer_settings"
+STORE_BOND_META = "bond_table_meta"
+STORE_CUSTOMER_META = "customer_table_meta"
+TABLE_BOND = "bond"
+TABLE_CUSTOMER = "customer"
+
+
+def _same_path(left, right):
+    try:
+        return Path(left).resolve() == Path(right).resolve()
+    except Exception:
+        return Path(left) == Path(right)
+
+
+def _json_store_mapping(path):
+    if _same_path(path, CONFIG_FILE):
+        return STORE_CONFIG, DEFAULT_CONFIG
+    if _same_path(path, CONTACTS_FILE):
+        return STORE_CONTACTS, []
+    if _same_path(path, CUSTOMER_SETTINGS_FILE):
+        return STORE_CUSTOMER_SETTINGS, DEFAULT_CUSTOMER_SETTINGS
+    return None, None
+
+
+def _models():
+    if not settings.configured or not apps.ready:
+        return None, None
+    try:
+        store_model = apps.get_model("bondreminder", "BondReminderStore")
+        row_model = apps.get_model("bondreminder", "BondReminderTableRow")
+        return store_model, row_model
+    except LookupError:
+        return None, None
+
+
+def _database_ready():
+    store_model, _ = _models()
+    if store_model is None:
+        return False
+    try:
+        store_model.objects.exists()
+        return True
+    except DatabaseError:
+        return False
+
+
+def _load_store(key, default):
+    store_model, _ = _models()
+    if store_model is None:
+        return copy.deepcopy(default)
+    try:
+        item, _ = store_model.objects.get_or_create(
+            key=key,
+            defaults={"value": copy.deepcopy(default)},
+        )
+        return copy.deepcopy(item.value)
+    except DatabaseError:
+        return copy.deepcopy(default)
+
+
+def _save_store(key, value):
+    store_model, _ = _models()
+    if store_model is None:
+        return value
+    item, _ = store_model.objects.get_or_create(key=key, defaults={"value": value})
+    item.value = value
+    item.save(update_fields=["value", "updated_at"])
+    return value
+
+
+def _cell_to_json(value):
+    if pd.isna(value):
+        return ""
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    return str(value)
+
+
+def _save_table(table_key, df, source_path=""):
+    _, row_model = _models()
+    if row_model is None:
+        return
+    columns = [str(col).strip().replace("\n", "") for col in df.columns]
+    records = []
+    for row_index, (_, row) in enumerate(df.iterrows()):
+        records.append(
+            row_model(
+                table_key=table_key,
+                row_index=row_index,
+                data={column: _cell_to_json(row[column]) for column in columns},
+            )
+        )
+    meta_key = STORE_BOND_META if table_key == TABLE_BOND else STORE_CUSTOMER_META
+    with transaction.atomic():
+        row_model.objects.filter(table_key=table_key).delete()
+        if records:
+            row_model.objects.bulk_create(records, batch_size=500)
+        _save_store(
+            meta_key,
+            {
+                "columns": columns,
+                "total_rows": len(records),
+                "source_path": str(source_path),
+            },
+        )
+
+
+def _load_table_dataframe(table_key, nrows=None):
+    _, row_model = _models()
+    if row_model is None:
+        return None
+    try:
+        meta_key = STORE_BOND_META if table_key == TABLE_BOND else STORE_CUSTOMER_META
+        meta = _load_store(meta_key, {"columns": [], "total_rows": 0, "source_path": ""})
+        query = row_model.objects.filter(table_key=table_key).order_by("row_index")
+        if nrows is not None:
+            query = query[:nrows]
+        rows = [item.data for item in query]
+        if not rows and not meta.get("columns"):
+            return None
+        columns = [str(col) for col in meta.get("columns", [])]
+        df = pd.DataFrame(rows)
+        for column in columns:
+            if column not in df.columns:
+                df[column] = ""
+        if columns:
+            df = df[columns]
+        return df
+    except DatabaseError:
+        return None
+
+
+def has_bond_table():
+    _, row_model = _models()
+    if row_model is None:
+        return BOND_CACHE_FILE.exists()
+    try:
+        return row_model.objects.filter(table_key=TABLE_BOND).exists()
+    except DatabaseError:
+        return BOND_CACHE_FILE.exists()
+
 
 def read_json(path, default):
     ensure_directories()
     path = Path(path)
+    store_key, store_default = _json_store_mapping(path)
+    if store_key and _database_ready():
+        return _load_store(store_key, store_default)
     if not path.exists():
         write_json(path, default)
         return copy.deepcopy(default)
@@ -115,6 +267,10 @@ def read_json(path, default):
 def write_json(path, data):
     ensure_directories()
     path = Path(path)
+    store_key, _ = _json_store_mapping(path)
+    if store_key and _database_ready():
+        _save_store(store_key, data)
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     with tmp_path.open("w", encoding="utf-8") as f:
@@ -173,6 +329,13 @@ def save_contacts(data):
 
 
 def load_customer_data():
+    if _database_ready():
+        df = _load_table_dataframe(TABLE_CUSTOMER)
+        meta = _load_store(STORE_CUSTOMER_META, {"columns": [], "total_rows": 0})
+        if df is not None:
+            columns = [str(col) for col in meta.get("columns", list(df.columns))]
+            rows = df.fillna("").astype(str).to_dict(orient="records")
+            return {"columns": columns, "rows": rows}
     data = read_json(CUSTOMER_DATA_FILE, DEFAULT_CUSTOMER_DATA)
     if not isinstance(data, dict):
         return copy.deepcopy(DEFAULT_CUSTOMER_DATA)
@@ -185,6 +348,16 @@ def save_customer_data(data):
     data = data if isinstance(data, dict) else copy.deepcopy(DEFAULT_CUSTOMER_DATA)
     data.setdefault("columns", [])
     data.setdefault("rows", [])
+    if _database_ready():
+        columns = [str(col).strip() for col in data.get("columns", [])]
+        df = pd.DataFrame(data.get("rows", []))
+        for column in columns:
+            if column not in df.columns:
+                df[column] = ""
+        if columns:
+            df = df[columns]
+        _save_table(TABLE_CUSTOMER, df)
+        return
     write_json(CUSTOMER_DATA_FILE, data)
 
 
@@ -214,6 +387,10 @@ def public_customer_settings(data=None):
 
 def read_table(path, header=0, nrows=None):
     path = Path(path)
+    if _same_path(path, BOND_CACHE_FILE) and _database_ready():
+        df = _load_table_dataframe(TABLE_BOND, nrows=nrows)
+        if df is not None:
+            return df
     ext = path.suffix.lower()
     if ext == ".csv":
         try:
@@ -228,8 +405,11 @@ def read_table(path, header=0, nrows=None):
 
 def cache_bond_table(source_path, header=0):
     df = read_table(source_path, header=header)
-    BOND_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(BOND_CACHE_FILE, index=False, encoding="utf-8-sig")
+    if _database_ready():
+        _save_table(TABLE_BOND, df, source_path=source_path)
+    else:
+        BOND_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(BOND_CACHE_FILE, index=False, encoding="utf-8-sig")
     config = load_config()
     config["excel_path"] = str(BOND_CACHE_FILE)
     config["ui_original_path"] = str(source_path)
@@ -241,6 +421,18 @@ def cache_bond_table(source_path, header=0):
 def bond_preview(limit=50):
     config = load_config()
     path = Path(config.get("excel_path") or BOND_CACHE_FILE)
+    if _database_ready():
+        df = _load_table_dataframe(TABLE_BOND)
+        if df is None:
+            return {"columns": [], "rows": [], "total_rows": 0, "path": ""}
+        preview = df.head(limit).fillna("").astype(str)
+        meta = _load_store(STORE_BOND_META, {"source_path": str(BOND_CACHE_FILE)})
+        return {
+            "columns": [str(col) for col in df.columns],
+            "rows": preview.to_dict(orient="records"),
+            "total_rows": int(len(df)),
+            "path": meta.get("source_path") or str(BOND_CACHE_FILE),
+        }
     if not path.exists():
         return {"columns": [], "rows": [], "total_rows": 0, "path": ""}
     df = read_table(path, header=0)

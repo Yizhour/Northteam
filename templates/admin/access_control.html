@@ -1,12 +1,191 @@
 {% extends "admin/base_site.html" %}
 
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .nt-access-page {
+        max-width: 1280px;
+    }
+
+    .nt-access-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+        padding: 18px;
+        background: #f8fafc;
+        border: 1px solid #d8e1ec;
+        border-radius: 8px;
+    }
+
+    .nt-access-hero h2 {
+        margin: 0 0 8px;
+        color: #0b223d;
+        font-size: 20px;
+    }
+
+    .nt-access-hero p {
+        max-width: 760px;
+        margin: 0;
+        color: #526276;
+        line-height: 1.7;
+    }
+
+    .nt-access-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        min-width: 220px;
+    }
+
+    .nt-access-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 7px 12px;
+        color: #0b223d !important;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .nt-access-button:hover {
+        background: #eef3f8;
+    }
+
+    .nt-access-note {
+        margin: 0 0 14px;
+        padding: 10px 12px;
+        color: #334155;
+        background: #eef6ff;
+        border-left: 4px solid #2f6ea3;
+        border-radius: 6px;
+    }
+
+    .nt-access-table-wrap {
+        overflow-x: auto;
+        background: #ffffff;
+        border: 1px solid #d8e1ec;
+        border-radius: 8px;
+    }
+
+    .nt-access-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+    }
+
+    .nt-access-table th,
+    .nt-access-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e5edf5;
+        vertical-align: top;
+    }
+
+    .nt-access-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        color: #0f172a;
+        background: #eef3f8;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .nt-access-feature {
+        width: 170px;
+        color: #0b223d;
+        background: #fbfcfe;
+    }
+
+    .nt-feature-key {
+        display: block;
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 400;
+    }
+
+    .nt-role-card {
+        display: grid;
+        gap: 8px;
+        min-width: 130px;
+    }
+
+    .nt-role-name {
+        color: #334155;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .nt-permission-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 0;
+        padding: 7px 9px;
+        background: #f8fafc;
+        border: 1px solid #dbe4ee;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .nt-permission-toggle input {
+        margin: 0;
+    }
+
+    .nt-submit-row {
+        position: sticky;
+        bottom: 0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 14px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid #d8e1ec;
+        border-radius: 8px;
+        box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    @media (max-width: 780px) {
+        .nt-access-hero {
+            flex-direction: column;
+        }
+
+        .nt-access-actions {
+            justify-content: flex-start;
+            min-width: 0;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div id="content-main">
+<div id="content-main" class="nt-access-page">
     <form method="post">
         {% csrf_token %}
-        <p>按功能和角色配置查看、使用、管理权限。保存后立即生效。</p>
-        <div class="module">
-            <table>
+        <div class="nt-access-hero">
+            <div>
+                <h2>权限控制台</h2>
+                <p>按功能和角色配置查看、使用、管理权限。保存后立即生效；概况首页现在作为公开信息页，未登录用户也可以查看。</p>
+            </div>
+            <div class="nt-access-actions">
+                <a class="nt-access-button" href="/">返回工作台</a>
+                <a class="nt-access-button" href="{% url 'admin:index' %}">返回 Admin</a>
+            </div>
+        </div>
+        <p class="nt-access-note">提示：付息兑付工具的入口和操作仍按这里配置控制；首页展示的本周/今日事项属于公开概况内容。</p>
+        <div class="nt-access-table-wrap">
+            <table class="nt-access-table">
                 <thead>
                     <tr>
                         <th>功能</th>
@@ -18,16 +197,21 @@
                 <tbody>
                     {% for row in rows %}
                         <tr>
-                            <th scope="row">{{ row.feature.name }}</th>
+                            <th class="nt-access-feature" scope="row">
+                                {{ row.feature.name }}
+                                <span class="nt-feature-key">{{ row.feature.key }}</span>
+                            </th>
                             {% for cell in row.cells %}
                                 <td>
-                                    <strong>{{ cell.role }}</strong><br>
-                                    {% for action in cell.actions %}
-                                        <label style="display:block; margin: 4px 0;">
-                                            <input type="checkbox" name="{{ action.name }}" {% if action.checked %}checked{% endif %}>
-                                            {{ action.label }}
-                                        </label>
-                                    {% endfor %}
+                                    <div class="nt-role-card">
+                                        <strong class="nt-role-name">{{ cell.role }}</strong>
+                                        {% for action in cell.actions %}
+                                            <label class="nt-permission-toggle">
+                                                <span>{{ action.label }}</span>
+                                                <input type="checkbox" name="{{ action.name }}" {% if action.checked %}checked{% endif %}>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
                                 </td>
                             {% endfor %}
                         </tr>
@@ -35,7 +219,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="submit-row">
+        <div class="nt-submit-row">
+            <a class="nt-access-button" href="/">返回工作台</a>
             <input type="submit" value="保存权限配置" class="default">
         </div>
     </form>

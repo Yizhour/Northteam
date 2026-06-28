@@ -16,7 +16,7 @@ from dashboard.models import FeatureAccess
 from dashboard.permissions import has_feature_access, is_super_admin
 from dashboard.views import base_context
 from tools.bondreminder.app.bond_logic import BondReminder
-from tools.bondreminder.app.config import APP_DIR, BOND_CACHE_FILE, UPLOAD_DIR
+from tools.bondreminder.app.config import APP_DIR, UPLOAD_DIR
 from tools.bondreminder.app.customer_logic import (
     call_identity_ai,
     check_birthday_jobs,
@@ -28,6 +28,7 @@ from tools.bondreminder.app.storage import (
     bond_preview,
     cache_bond_table,
     import_customer_table,
+    has_bond_table,
     load_config,
     load_contacts,
     load_customer_data,
@@ -168,7 +169,7 @@ def static_asset(request, path):
 
 @require_api_access(FeatureAccess.ACTION_VIEW)
 def api_health(request):
-    return ok({'status': 'running', 'bond_cache_exists': BOND_CACHE_FILE.exists()})
+    return ok({'status': 'running', 'bond_cache_exists': has_bond_table()})
 
 
 @require_api_access(FeatureAccess.ACTION_VIEW)

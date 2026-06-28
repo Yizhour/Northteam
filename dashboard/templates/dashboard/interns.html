@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}实习生工作安排 | NorthTeam 工作台{% endblock %}
+
+{% block content %}
+<section class="page-heading compact-heading">
+    <p class="eyebrow">Interns</p>
+    <h1>实习生工作安排</h1>
+    {% if not intern_share_token %}
+        <p class="heading-text">查看实习生本周工作安排、请假占用和排班冲突。可点击或拖动时间格快速创建工作安排。</p>
+    {% endif %}
+</section>
+
+<section class="intern-workspace{% if intern_share_token %} public-schedule{% endif %}" id="internScheduleApp">
+    {% if not intern_share_token %}
+        <aside class="intern-sidebar">
+            <div class="intern-sidebar-head">
+                <h2>实习生列表</h2>
+                <span id="internCount">0 人</span>
+            </div>
+            <button class="primary-button full-width" type="button" id="newInternBtn" hidden>新增实习生</button>
+            <div id="internList"></div>
+            <div class="intern-side-actions" id="internSideActions" hidden>
+                <button class="plain-button" type="button" id="editInternBtn">编辑当前</button>
+                <button class="plain-button" type="button" id="copyInternLinkBtn">复制专属链接</button>
+                <button class="danger-button" type="button" id="deleteInternBtn">停用</button>
+            </div>
+        </aside>
+    {% endif %}
+
+    <section class="schedule-panel">
+        <div class="schedule-toolbar">
+            <div>
+                <h2 id="selectedInternName">请选择实习生</h2>
+                <span id="weekLabel"></span>
+            </div>
+            {% if not intern_share_token %}
+                <div class="schedule-actions">
+                    <button class="icon-button" type="button" id="prevWeekBtn">‹</button>
+                    <button class="plain-button" type="button" id="currentWeekBtn">本周</button>
+                    <button class="icon-button" type="button" id="nextWeekBtn">›</button>
+                    <button class="plain-button" type="button" id="leaveBtn" hidden>请假</button>
+                    <button class="primary-button" type="button" id="workBtn" hidden>安排工作</button>
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-error" id="scheduleError" hidden></div>
+        <div class="schedule-table-wrap">
+            <table class="schedule-table" id="scheduleTable"></table>
+        </div>
+    </section>
+</section>
+
+{% if not intern_share_token %}
+<div class="modal-backdrop" id="scheduleModal" hidden>
+    <form class="schedule-modal" id="scheduleForm">
+        <div class="modal-head">
+            <div>
+                <p class="eyebrow" id="modalEyebrow">Work</p>
+                <h2 id="modalTitle">新增工作安排</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeModalBtn">×</button>
+        </div>
+        <div class="form-error" id="modalError" hidden></div>
+        <div class="form-grid">
+            <label>标题 <input id="scheduleTitle" required></label>
+            <label>日期 <input id="scheduleDate" type="date" required></label>
+            <label>开始时间 <input id="scheduleStart" type="time" min="09:00" max="18:00" required></label>
+            <label>结束时间 <input id="scheduleEnd" type="time" min="09:00" max="18:00" required></label>
+            <label class="wide">备注 <textarea id="scheduleNotes" rows="4"></textarea></label>
+        </div>
+        <div class="schedule-detail-meta" id="scheduleMeta"></div>
+        <div class="modal-actions">
+            <button class="plain-button" type="button" id="cancelModalBtn">关闭</button>
+            <button class="primary-button" type="button" id="editScheduleBtn" hidden>编辑</button>
+            <button class="danger-button" type="button" id="deleteScheduleBtn" hidden>删除</button>
+            <button class="primary-button" type="submit" id="saveScheduleBtn">保存</button>
+        </div>
+    </form>
+</div>
+
+<div class="modal-backdrop" id="internModal" hidden>
+    <form class="schedule-modal" id="internForm">
+        <div class="modal-head">
+            <div>
+                <p class="eyebrow">Intern</p>
+                <h2 id="internModalTitle">新增实习生</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeInternModalBtn">×</button>
+        </div>
+        <div class="form-error" id="internModalError" hidden></div>
+        <div class="form-grid">
+            <label>姓名 <input id="internName" required></label>
+            <label class="wide">备注 <textarea id="internNote" rows="3"></textarea></label>
+            <label class="wide" id="internShareWrap" hidden>专属链接 <input id="internShareUrl" readonly></label>
+        </div>
+        <div class="modal-actions">
+            <button class="plain-button" type="button" id="cancelInternModalBtn">关闭</button>
+            <button class="primary-button" type="submit">保存</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<script>
+(() => {
+    const shareToken = "{{ intern_share_token|default:''|escapejs }}";
+    const state = {
+        interns: [],
+        selectedIntern: null,
+        weekStart: mondayOf(new Date()),
+        schedules: [],
+        capabilities: {},
+        modalItem: null,
+        modalReadonly: false,
+        modalType: 'work',
+        internModalItem: null,
+        listCapabilities: {},
+        selection: null,
+    };
+    const weekdays = ['周一', '周二', '周三', '周四', '周五'];
+    const hours = Array.from({ length: 9 }, (_, index) => index + 9);
+    const $ = (id) => document.getElementById(id);
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        return parts.length === 2 ? parts.pop().split(';').shift() : '';
+    }
+
+    async function request(path, options = {}) {
+        const response = await fetch(path, {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+                ...(options.headers || {}),
+            },
+            ...options,
+        });
+        const payload = await response.json().catch(() => ({ ok: false, error: response.statusText }));
+        if (!response.ok || !payload.ok) throw new Error(payload.error || response.statusText);
+        return payload.data;
+    }
+
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function parseDate(value) {
+        const [y, m, d] = value.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    function mondayOf(date) {
+        const copy = new Date(date);
+        const day = copy.getDay() || 7;
+        copy.setDate(copy.getDate() - day + 1);
+        return formatDate(copy);
+    }
+
+    function datePart(value) { return value.slice(0, 10); }
+    function timePart(value) { return value.slice(11, 16); }
+    function toMinutes(value) {
+        const date = new Date(value);
+        return date.getHours() * 60 + date.getMinutes();
+    }
+
+    function weekDays() {
+        const base = parseDate(state.weekStart);
+        return weekdays.map((label, index) => {
+            const day = new Date(base);
+            day.setDate(base.getDate() + index);
+            return { label, date: formatDate(day) };
+        });
+    }
+
+    function schedulesForCell(date, hour) {
+        const start = hour * 60;
+        const end = (hour + 1) * 60;
+        return state.schedules.filter((item) => (
+            datePart(item.start_time) === date &&
+            toMinutes(item.start_time) < end &&
+            toMinutes(item.end_time) > start
+        ));
+    }
+
+    function setError(message) {
+        $('scheduleError').hidden = !message;
+        $('scheduleError').textContent = message || '';
+    }
+
+    function renderInterns() {
+        $('internCount').textContent = `${state.interns.length} 人`;
+        $('newInternBtn').hidden = !state.listCapabilities.can_manage_interns;
+        $('internSideActions').hidden = !(state.selectedIntern && state.listCapabilities.can_manage_interns);
+        $('internList').innerHTML = state.interns.map((intern) => `
+            <button class="intern-list-item ${state.selectedIntern && state.selectedIntern.id === intern.id ? 'active' : ''}" type="button" data-intern-id="${intern.id}">
+                <strong>${intern.name}</strong>
+                <span>${intern.note || '暂无备注'}</span>
+            </button>
+        `).join('') || '<p class="intern-empty">暂无实习生档案。</p>';
+    }
+
+    function renderSchedule() {
+        $('selectedInternName').textContent = state.selectedIntern ? state.selectedIntern.name : '请选择实习生';
+        $('weekLabel').textContent = state.selectedIntern ? `${shareToken ? '专属链接' : '内部管理'} · ${state.weekStart} 至 ${state.weekEnd || ''}` : '';
+        if (!shareToken) {
+            $('leaveBtn').hidden = !state.capabilities.can_request_leave;
+            $('workBtn').hidden = !state.capabilities.can_create_work;
+        }
+        const days = weekDays();
+        $('scheduleTable').innerHTML = `
+            <thead><tr><th class="time-column">时间</th>${days.map((day) => `<th><strong>${day.label}</strong><span>${day.date}</span></th>`).join('')}</tr></thead>
+            <tbody>${hours.map((hour) => `
+                <tr>
+                    <th class="time-column">${String(hour).padStart(2, '0')}:00-${String(hour + 1).padStart(2, '0')}:00</th>
+                    ${days.map((day) => `<td class="schedule-cell ${isCellSelected(day.date, hour) ? 'selecting' : ''}" data-date="${day.date}" data-hour="${hour}">${schedulesForCell(day.date, hour).map((item) => `
+                        <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}">
+                            <span>${timePart(item.start_time)}-${timePart(item.end_time)}</span>
+                            <strong>${item.title}</strong>
+                            <small>${item.created_by_name}</small>
+                        </button>`).join('')}</td>`).join('')}
+                </tr>`).join('')}</tbody>
+        `;
+    }
+
+    function isCellSelected(date, hour) {
+        if (!state.selection || state.selection.date !== date) return false;
+        const minHour = Math.min(state.selection.startHour, state.selection.endHour);
+        const maxHour = Math.max(state.selection.startHour, state.selection.endHour);
+        return hour >= minHour && hour <= maxHour;
+    }
+
+    async function loadInterns() {
+        if (shareToken) return;
+        const data = await request('/api/interns/');
+        state.interns = data.interns;
+        state.listCapabilities = data.capabilities || {};
+        state.selectedIntern = state.selectedIntern || state.interns[0] || null;
+        renderInterns();
+    }
+
+    async function loadSchedule() {
+        if (!shareToken && !state.selectedIntern) {
+            renderSchedule();
+            return;
+        }
+        const path = shareToken
+            ? `/api/intern-share/${shareToken}/?week_start=${state.weekStart}`
+            : `/api/intern-schedules/?intern_id=${state.selectedIntern.id}&week_start=${state.weekStart}`;
+        const data = await request(path);
+        if (shareToken) state.selectedIntern = data.intern;
+        state.schedules = data.schedules;
+        state.capabilities = data.capabilities;
+        state.weekEnd = data.week_end;
+        renderSchedule();
+    }
+
+    function setReadonly(readonly) {
+        state.modalReadonly = readonly;
+        ['scheduleTitle', 'scheduleDate', 'scheduleStart', 'scheduleEnd', 'scheduleNotes'].forEach((id) => { $(id).disabled = readonly; });
+        $('saveScheduleBtn').hidden = readonly;
+        $('editScheduleBtn').hidden = !(readonly && state.modalItem && state.modalItem.can_edit);
+        $('deleteScheduleBtn').hidden = readonly || !(state.modalItem && state.modalItem.can_delete);
+    }
+
+    function openModal(type, item = null) {
+        if (shareToken) return;
+        state.modalType = type;
+        state.modalItem = item;
+        $('modalError').hidden = true;
+        $('modalEyebrow').textContent = type === 'leave' ? 'Leave' : 'Work';
+        $('modalTitle').textContent = item ? '安排详情' : (type === 'leave' ? '提交请假' : '新增工作安排');
+        $('scheduleTitle').value = item ? item.title : (type === 'leave' ? '请假' : '');
+        $('scheduleDate').value = item ? datePart(item.start_time) : weekDays()[0].date;
+        $('scheduleStart').value = item ? timePart(item.start_time) : '09:00';
+        $('scheduleEnd').value = item ? timePart(item.end_time) : '10:00';
+        $('scheduleNotes').value = item ? item.notes || '' : '';
+        $('scheduleMeta').innerHTML = item ? `<span>安排人：${item.created_by_name}</span><span>类型：${item.schedule_type_label}</span>` : '';
+        setReadonly(!!item);
+        $('scheduleModal').hidden = false;
+    }
+
+    function openModalForRange(date, startHour, endHour) {
+        if (shareToken || !state.capabilities.can_create_work) return;
+        const from = Math.min(startHour, endHour);
+        const to = Math.max(startHour, endHour) + 1;
+        openModal('work');
+        $('scheduleDate').value = date;
+        $('scheduleStart').value = `${String(from).padStart(2, '0')}:00`;
+        $('scheduleEnd').value = `${String(to).padStart(2, '0')}:00`;
+    }
+
+    function closeModal() {
+        $('scheduleModal').hidden = true;
+    }
+
+    async function submitSchedule(event) {
+        event.preventDefault();
+        if (shareToken) {
+            $('modalError').hidden = false;
+            $('modalError').textContent = '专属链接只能查看日程，不能提交或修改。';
+            return;
+        }
+        const payload = {
+            intern_id: state.selectedIntern && state.selectedIntern.id,
+            schedule_type: state.modalType,
+            title: $('scheduleTitle').value,
+            notes: $('scheduleNotes').value,
+            start_time: `${$('scheduleDate').value}T${$('scheduleStart').value}:00`,
+            end_time: `${$('scheduleDate').value}T${$('scheduleEnd').value}:00`,
+        };
+        try {
+            if (state.modalItem) {
+                await request(`/api/intern-schedules/${state.modalItem.id}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+            } else {
+                await request('/api/intern-schedules/', { method: 'POST', body: JSON.stringify(payload) });
+            }
+            closeModal();
+            await loadSchedule();
+        } catch (exc) {
+            $('modalError').hidden = false;
+            $('modalError').textContent = exc.message;
+        }
+    }
+
+    async function init() {
+        try {
+            await loadInterns();
+            await loadSchedule();
+        } catch (exc) {
+            setError(exc.message);
+        }
+    }
+
+    function openInternModal(intern = null) {
+        state.internModalItem = intern;
+        $('internModalTitle').textContent = intern ? '编辑实习生' : '新增实习生';
+        $('internName').value = intern ? intern.name : '';
+        $('internNote').value = intern ? intern.note || '' : '';
+        $('internShareWrap').hidden = !intern;
+        $('internShareUrl').value = intern ? intern.share_url : '';
+        $('internModalError').hidden = true;
+        $('internModal').hidden = false;
+    }
+
+    function closeInternModal() {
+        $('internModal').hidden = true;
+    }
+
+    if (!shareToken) $('internList').addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-intern-id]');
+        if (!button) return;
+        state.selectedIntern = state.interns.find((intern) => String(intern.id) === button.dataset.internId);
+        renderInterns();
+        await loadSchedule();
+    });
+    $('scheduleTable').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-schedule-id]');
+        if (!button) return;
+        const item = state.schedules.find((schedule) => String(schedule.id) === button.dataset.scheduleId);
+        if (item && !shareToken) openModal(item.schedule_type, item);
+    });
+    $('scheduleTable').addEventListener('mousedown', (event) => {
+        if (shareToken || event.target.closest('[data-schedule-id]')) return;
+        const cell = event.target.closest('.schedule-cell');
+        if (!cell || !state.capabilities.can_create_work) return;
+        event.preventDefault();
+        state.selection = { date: cell.dataset.date, startHour: Number(cell.dataset.hour), endHour: Number(cell.dataset.hour) };
+        renderSchedule();
+    });
+    $('scheduleTable').addEventListener('mouseover', (event) => {
+        if (!state.selection) return;
+        const cell = event.target.closest('.schedule-cell');
+        if (!cell || cell.dataset.date !== state.selection.date) return;
+        state.selection.endHour = Number(cell.dataset.hour);
+        renderSchedule();
+    });
+    document.addEventListener('mouseup', () => {
+        if (!state.selection) return;
+        const selection = state.selection;
+        state.selection = null;
+        renderSchedule();
+        openModalForRange(selection.date, selection.startHour, selection.endHour);
+    });
+    if (!shareToken) $('prevWeekBtn').addEventListener('click', async () => {
+        const date = parseDate(state.weekStart);
+        date.setDate(date.getDate() - 7);
+        state.weekStart = formatDate(date);
+        await loadSchedule();
+    });
+    if (!shareToken) $('nextWeekBtn').addEventListener('click', async () => {
+        const date = parseDate(state.weekStart);
+        date.setDate(date.getDate() + 7);
+        state.weekStart = formatDate(date);
+        await loadSchedule();
+    });
+    if (!shareToken) $('currentWeekBtn').addEventListener('click', async () => {
+        state.weekStart = mondayOf(new Date());
+        await loadSchedule();
+    });
+    if (!shareToken) $('workBtn').addEventListener('click', () => openModal('work'));
+    if (!shareToken) $('leaveBtn').addEventListener('click', () => openModal('leave'));
+    if (!shareToken) $('closeModalBtn').addEventListener('click', closeModal);
+    if (!shareToken) $('cancelModalBtn').addEventListener('click', closeModal);
+    if (!shareToken) $('editScheduleBtn').addEventListener('click', () => {
+        $('modalTitle').textContent = '编辑安排';
+        setReadonly(false);
+    });
+    if (!shareToken) $('deleteScheduleBtn').addEventListener('click', async () => {
+        if (!state.modalItem) return;
+        if (shareToken) return;
+        await request(`/api/intern-schedules/${state.modalItem.id}/`, { method: 'DELETE' });
+        closeModal();
+        await loadSchedule();
+    });
+    if (!shareToken) $('newInternBtn').addEventListener('click', () => openInternModal());
+    if (!shareToken) $('editInternBtn').addEventListener('click', () => { if (state.selectedIntern) openInternModal(state.selectedIntern); });
+    if (!shareToken) $('copyInternLinkBtn').addEventListener('click', async () => {
+        if (navigator.clipboard && state.selectedIntern && state.selectedIntern.share_url) {
+            await navigator.clipboard.writeText(state.selectedIntern.share_url);
+        }
+    });
+    if (!shareToken) $('deleteInternBtn').addEventListener('click', async () => {
+        if (!state.selectedIntern) return;
+        await request(`/api/interns/${state.selectedIntern.id}/`, { method: 'DELETE' });
+        state.selectedIntern = null;
+        await loadInterns();
+        await loadSchedule();
+    });
+    if (!shareToken) $('closeInternModalBtn').addEventListener('click', closeInternModal);
+    if (!shareToken) $('cancelInternModalBtn').addEventListener('click', closeInternModal);
+    if (!shareToken) $('internForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = { name: $('internName').value, note: $('internNote').value };
+        try {
+            if (state.internModalItem) {
+                await request(`/api/interns/${state.internModalItem.id}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+            } else {
+                await request('/api/interns/', { method: 'POST', body: JSON.stringify(payload) });
+            }
+            closeInternModal();
+            state.selectedIntern = null;
+            await loadInterns();
+            await loadSchedule();
+        } catch (exc) {
+            $('internModalError').hidden = false;
+            $('internModalError').textContent = exc.message;
+        }
+    });
+    if (!shareToken) $('scheduleForm').addEventListener('submit', submitSchedule);
+    init();
+})();
+</script>
+{% endblock %}

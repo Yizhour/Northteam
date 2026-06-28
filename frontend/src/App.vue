@@ -1,6 +1,6 @@
 <template>
   <div>
-    <header class="topbar">
+    <header v-if="!isPublicInternShare" class="topbar">
       <RouterLink class="brand" to="/">
         <span class="brand-mark">NT</span>
         <span class="brand-text">NorthTeam 工作台</span>
@@ -45,7 +45,7 @@
 </template>
 
 <script setup>
-import { onMounted, provide, reactive } from 'vue';
+import { computed, onMounted, provide, reactive } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { LogIn, LogOut } from '@lucide/vue';
 
@@ -53,6 +53,7 @@ import { api, logout } from './api';
 
 const router = useRouter();
 const route = useRoute();
+const isPublicInternShare = computed(() => route.path.startsWith('/interns/share/'));
 const session = reactive({
   authenticated: false,
   username: '',

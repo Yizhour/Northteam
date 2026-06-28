@@ -1,23 +1,43 @@
 import json
+from datetime import datetime, timedelta
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
+from tools.bondreminder.app.bond_logic import BondReminder
 
-from .models import Feature, FeatureAccess
+from .models import Feature, FeatureAccess, Intern, InternSchedule
 
 
 class DashboardPageTests(TestCase):
     def user_in_group(self, username, group_name, **kwargs):
+        kwargs.setdefault('first_name', username)
         user = User.objects.create_user(username=username, password='pass12345', **kwargs)
         user.groups.add(Group.objects.get(name=group_name))
         return user
+
+    def schedule_day(self):
+        today = timezone.localdate()
+        monday = today - timedelta(days=today.weekday())
+        return monday.isoformat()
+
+    def schedule_payload(self, intern, start='09:00', end='10:00', title='整理材料'):
+        day = self.schedule_day()
+        return {
+            'intern_id': intern.id,
+            'schedule_type': InternSchedule.TYPE_WORK,
+            'title': title,
+            'start_time': f'{day}T{start}:00',
+            'end_time': f'{day}T{end}:00',
+        }
 
     def test_default_permissions_are_seeded(self):
         self.assertTrue(Group.objects.filter(name='超级管理员').exists())
         self.assertTrue(Group.objects.filter(name='团队负责人').exists())
         self.assertTrue(Group.objects.filter(name='正式成员').exists())
-        self.assertTrue(Group.objects.filter(name='实习生').exists())
+        self.assertFalse(Group.objects.filter(name='实习生').exists())
         self.assertFalse(Group.objects.filter(name='只读用户（未登录）').exists())
         self.assertTrue(Feature.objects.filter(key='bondreminder').exists())
         self.assertTrue(
@@ -56,26 +76,16 @@ class DashboardPageTests(TestCase):
         interns_response = self.client.get(reverse('dashboard:interns'))
         self.assertEqual(interns_response.status_code, 200)
 
-    def test_intern_can_view_bondreminder_but_cannot_use_mutating_api(self):
-        self.user_in_group('intern', '实习生')
-        self.client.login(username='intern', password='pass12345')
+    def test_user_without_role_cannot_open_bondreminder(self):
+        User.objects.create_user(username='no_role', first_name='no_role', password='pass12345')
+        self.client.login(username='no_role', password='pass12345')
 
         page = self.client.get('/tools/bond-reminder/')
-        self.assertEqual(page.status_code, 200)
-        self.assertContains(page, 'NorthTeam 工作台')
-        self.assertContains(page, 'systemTitle')
+        self.assertEqual(page.status_code, 403)
 
         get_response = self.client.get('/tools/bond-reminder/api/config')
-        self.assertEqual(get_response.status_code, 200)
-        self.assertTrue(json.loads(get_response.content)['ok'])
-
-        post_response = self.client.post(
-            '/tools/bond-reminder/api/config',
-            data=json.dumps({'weekly_enabled': False}),
-            content_type='application/json',
-        )
-        self.assertEqual(post_response.status_code, 403)
-        self.assertFalse(json.loads(post_response.content)['ok'])
+        self.assertEqual(get_response.status_code, 403)
+        self.assertFalse(json.loads(get_response.content)['ok'])
 
     def test_member_can_use_bondreminder_api(self):
         self.user_in_group('member_api', '正式成员')
@@ -89,7 +99,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(payload['data']['status'], 'running')
 
     def test_super_admin_can_open_access_control_and_admin(self):
-        User.objects.create_superuser('root', 'root@example.com', 'pass12345')
+        User.objects.create_superuser('root', 'root@example.com', 'pass12345', first_name='root')
         self.client.login(username='root', password='pass12345')
 
         access_response = self.client.get(reverse('access_control'))
@@ -131,6 +141,20 @@ class DashboardPageTests(TestCase):
         self.assertFalse(payload['data']['authenticated'])
         self.assertEqual([item['key'] for item in payload['data']['features']], ['overview'])
 
+    def test_admin_user_creation_requires_name(self):
+        from .admin import RequiredNameUserCreationForm
+
+        form = RequiredNameUserCreationForm(
+            data={
+                'username': 'missing_name',
+                'password1': 'StrongPass12345!',
+                'password2': 'StrongPass12345!',
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('first_name', form.errors)
+
     def test_vue_login_api_returns_member_navigation(self):
         self.user_in_group('vue_member', '正式成员')
 
@@ -158,3 +182,248 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['tools'][0]['key'], 'bondreminder')
+
+    def test_overview_api_exposes_public_bond_reminder_summary(self):
+        anonymous_response = self.client.get('/api/overview/')
+        anonymous_payload = json.loads(anonymous_response.content)
+
+        self.assertEqual(anonymous_response.status_code, 200)
+        self.assertTrue(anonymous_payload['data']['bond_reminder']['available'])
+        self.assertIn('weekly_events', anonymous_payload['data']['bond_reminder'])
+
+        self.user_in_group('vue_member_overview', '正式成员')
+        self.client.login(username='vue_member_overview', password='pass12345')
+        member_response = self.client.get('/api/overview/')
+        member_payload = json.loads(member_response.content)
+        bond_reminder = member_payload['data']['bond_reminder']
+
+        self.assertEqual(member_response.status_code, 200)
+        self.assertTrue(bond_reminder['available'])
+        self.assertIn('weekly_events', bond_reminder)
+        self.assertIn('today_events', bond_reminder)
+        self.assertIn('display_columns', bond_reminder)
+
+    def test_overview_remains_public_even_if_permission_is_disabled(self):
+        FeatureAccess.objects.filter(
+            feature__key='overview',
+            role=FeatureAccess.ROLE_ANONYMOUS,
+            action=FeatureAccess.ACTION_VIEW,
+        ).update(allowed=False)
+
+        page_response = self.client.get(reverse('dashboard:home'))
+        api_response = self.client.get('/api/overview/')
+
+        self.assertEqual(page_response.status_code, 200)
+        self.assertEqual(api_response.status_code, 200)
+
+    def test_daily_check_reports_events_missing_contacts(self):
+        today = datetime.now().date()
+        with TemporaryDirectory() as temp_dir:
+            table_path = f'{temp_dir}/bond.csv'
+            with open(table_path, 'w', encoding='utf-8-sig') as table:
+                table.write('证券代码,证券简称,2026年度付息日（T）,对接人姓名,对接人手机号\n')
+                table.write(f'2320025.IB,23北京银行01,{today},,\n')
+
+            reminder = BondReminder(
+                {
+                    'sender_email': 'sender@example.com',
+                    'excel_path': table_path,
+                    'header_row_index': 0,
+                    'date_columns': ['2026年度付息日（T）'],
+                    'col_contact_name': '对接人姓名',
+                    'col_contact_phone': '对接人手机号',
+                    'daily_msg_template': '”{证券简称}“ {短信文本}',
+                    'daily_msg_intro': '您好，今日有{n}项债券事项需要处理：',
+                    'column_sms_texts': {'2026年度付息日（T）': '付息日'},
+                }
+            )
+
+            logs = reminder.run_daily_check()
+
+        self.assertTrue(any('今日检测到 1 条事项，但未生成每日提醒' in log for log in logs))
+        self.assertTrue(any('缺少对接人姓名或手机号' in log for log in logs))
+
+    def test_public_intern_link_is_read_only_and_only_sees_self(self):
+        intern = Intern.objects.create(name='实习生甲')
+        other = Intern.objects.create(name='实习生乙')
+        InternSchedule.objects.create(
+            intern=other,
+            created_by=None,
+            schedule_type=InternSchedule.TYPE_LEAVE,
+            title='其他人请假',
+            start_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T09:00:00')),
+            end_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T10:00:00')),
+        )
+
+        schedules_response = self.client.get(f'/api/intern-share/{intern.access_token}/?week_start={self.schedule_day()}')
+        schedules_payload = json.loads(schedules_response.content)
+
+        self.assertEqual(schedules_response.status_code, 200)
+        self.assertEqual(schedules_payload['data']['intern']['id'], intern.id)
+        self.assertEqual(schedules_payload['data']['schedules'], [])
+        self.assertFalse(schedules_payload['data']['capabilities']['can_request_leave'])
+
+        denied_work = self.client.post(
+            f'/api/intern-share/{intern.access_token}/',
+            data=json.dumps(self.schedule_payload(intern)),
+            content_type='application/json',
+        )
+        self.assertEqual(denied_work.status_code, 405)
+
+        leave_payload = self.schedule_payload(intern, title='请假')
+        leave_payload['schedule_type'] = InternSchedule.TYPE_LEAVE
+        leave_response = self.client.post(
+            f'/api/intern-share/{intern.access_token}/',
+            data=json.dumps(leave_payload),
+            content_type='application/json',
+        )
+        self.assertEqual(leave_response.status_code, 405)
+        self.assertFalse(InternSchedule.objects.filter(intern=intern).exists())
+
+    def test_public_intern_share_page_has_no_login_or_management_controls(self):
+        intern = Intern.objects.create(name='纯展示实习生')
+
+        response = self.client.get(f'/interns/share/{intern.access_token}/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '登录')
+        self.assertNotContains(response, '实习生列表')
+        self.assertNotContains(response, 'id="leaveBtn"')
+        self.assertNotContains(response, 'id="workBtn"')
+        self.assertNotContains(response, 'id="internList"')
+
+    def test_member_can_edit_intern_list(self):
+        self.user_in_group('intern_list_member', '正式成员')
+        self.client.login(username='intern_list_member', password='pass12345')
+
+        create_response = self.client.post(
+            '/api/interns/',
+            data=json.dumps({'name': '新实习生', 'note': '暑期'}),
+            content_type='application/json',
+        )
+        intern_id = json.loads(create_response.content)['data']['id']
+        patch_response = self.client.patch(
+            f'/api/interns/{intern_id}/',
+            data=json.dumps({'name': '更新实习生', 'note': '长期'}),
+            content_type='application/json',
+        )
+        delete_response = self.client.delete(f'/api/interns/{intern_id}/')
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertFalse(Intern.objects.get(id=intern_id).is_active)
+
+    def test_leave_schedule_can_be_edited_by_any_member(self):
+        intern = Intern.objects.create(name='请假对象')
+        creator = self.user_in_group('leave_creator', '正式成员')
+        editor = self.user_in_group('leave_editor', '正式成员')
+        schedule = InternSchedule.objects.create(
+            intern=intern,
+            created_by=creator,
+            schedule_type=InternSchedule.TYPE_LEAVE,
+            title='请假',
+            start_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T13:00:00')),
+            end_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T14:00:00')),
+        )
+        self.client.login(username='leave_editor', password='pass12345')
+
+        patch_response = self.client.patch(
+            f'/api/intern-schedules/{schedule.id}/',
+            data=json.dumps({'title': '协助调整请假'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(InternSchedule.objects.get(id=schedule.id).title, '协助调整请假')
+
+    def test_member_can_create_leave_for_intern(self):
+        intern = Intern.objects.create(name='请假创建对象')
+        self.user_in_group('leave_create_member', '正式成员')
+        self.client.login(username='leave_create_member', password='pass12345')
+        payload = self.schedule_payload(intern, start='14:00', end='15:00', title='请假')
+        payload['schedule_type'] = InternSchedule.TYPE_LEAVE
+
+        response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(InternSchedule.objects.get(intern=intern).schedule_type, InternSchedule.TYPE_LEAVE)
+
+    def test_member_can_create_but_not_edit_others_schedule_and_conflicts_are_rejected(self):
+        intern = Intern.objects.create(name='成员安排对象')
+        member = self.user_in_group('schedule_member', '正式成员', first_name='Schedule Owner')
+        other_member = self.user_in_group('schedule_other_member', '正式成员')
+        self.client.login(username='schedule_member', password='pass12345')
+
+        create_response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(self.schedule_payload(intern, start='09:30', end='10:30')),
+            content_type='application/json',
+        )
+        self.assertEqual(create_response.status_code, 200)
+        created_schedule = json.loads(create_response.content)['data']
+        self.assertEqual(created_schedule['created_by_name'], 'Schedule Owner')
+        schedule_id = created_schedule['id']
+
+        conflict_response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(self.schedule_payload(intern, start='10:00', end='11:00', title='冲突安排')),
+            content_type='application/json',
+        )
+        self.assertEqual(conflict_response.status_code, 400)
+        conflict_error = json.loads(conflict_response.content)['error']
+        self.assertIn('该时间段已有安排', conflict_error)
+        self.assertIn('整理材料', conflict_error)
+        self.assertIn('09:30-10:30', conflict_error)
+        self.assertIn('重叠时间', conflict_error)
+        self.assertIn('10:00-10:30', conflict_error)
+
+        self.client.logout()
+        self.client.login(username='schedule_other_member', password='pass12345')
+        patch_response = self.client.patch(
+            f'/api/intern-schedules/{schedule_id}/',
+            data=json.dumps({'title': '别人修改'}),
+            content_type='application/json',
+        )
+        delete_response = self.client.delete(f'/api/intern-schedules/{schedule_id}/')
+        self.assertEqual(patch_response.status_code, 403)
+        self.assertEqual(delete_response.status_code, 403)
+
+        self.client.logout()
+        self.client.login(username='schedule_member', password='pass12345')
+        own_patch = self.client.patch(
+            f'/api/intern-schedules/{schedule_id}/',
+            data=json.dumps({'title': '自己修改'}),
+            content_type='application/json',
+        )
+        self.assertEqual(own_patch.status_code, 200)
+        self.assertEqual(InternSchedule.objects.get(id=schedule_id).title, '自己修改')
+
+    def test_team_lead_can_manage_all_intern_schedules(self):
+        intern = Intern.objects.create(name='负责人安排对象')
+        member = self.user_in_group('lead_schedule_member', '正式成员')
+        lead = self.user_in_group('schedule_lead', '团队负责人')
+        schedule = InternSchedule.objects.create(
+            intern=intern,
+            created_by=member,
+            schedule_type=InternSchedule.TYPE_WORK,
+            title='成员安排',
+            start_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T11:00:00')),
+            end_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T12:00:00')),
+        )
+        self.client.login(username='schedule_lead', password='pass12345')
+
+        patch_response = self.client.patch(
+            f'/api/intern-schedules/{schedule.id}/',
+            data=json.dumps({'title': '负责人修改'}),
+            content_type='application/json',
+        )
+        delete_response = self.client.delete(f'/api/intern-schedules/{schedule.id}/')
+
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertFalse(InternSchedule.objects.filter(id=schedule.id).exists())

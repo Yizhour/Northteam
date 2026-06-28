@@ -8,36 +8,38 @@
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
 </head>
 <body>
-    <header class="topbar">
-        <a class="brand" href="{% url 'dashboard:home' %}" aria-label="NorthTeam 工作台首页">
-            <span class="brand-mark">NT</span>
-            <span class="brand-text">NorthTeam 工作台</span>
-        </a>
-        <nav class="main-nav" aria-label="主导航">
-            {% for item in nav_items %}
-                <a class="nav-link{% if item.label == active_nav %} active{% endif %}" href="{% url item.url_name %}">
-                    {{ item.label }}
-                </a>
-            {% endfor %}
-        </nav>
-        <div class="user-actions">
-            {% if request.user.is_authenticated %}
-                <span class="user-name">{{ request.user.get_username }}</span>
-                {% if can_manage_permissions %}
-                    <a class="admin-link" href="{% url 'access_control' %}">权限控制台</a>
+    {% if not hide_chrome %}
+        <header class="topbar">
+            <a class="brand" href="{% url 'dashboard:home' %}" aria-label="NorthTeam 工作台首页">
+                <span class="brand-mark">NT</span>
+                <span class="brand-text">NorthTeam 工作台</span>
+            </a>
+            <nav class="main-nav" aria-label="主导航">
+                {% for item in nav_items %}
+                    <a class="nav-link{% if item.label == active_nav %} active{% endif %}" href="{% url item.url_name %}">
+                        {{ item.label }}
+                    </a>
+                {% endfor %}
+            </nav>
+            <div class="user-actions">
+                {% if request.user.is_authenticated %}
+                    <span class="user-name">{{ request.user.get_username }}</span>
+                    {% if can_manage_permissions %}
+                        <a class="admin-link" href="{% url 'access_control' %}">权限控制台</a>
+                    {% endif %}
+                    {% if request.user.is_staff %}
+                        <a class="admin-link" href="{% url 'admin:index' %}">Admin</a>
+                    {% endif %}
+                    <form class="logout-form" method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button class="logout-button" type="submit">退出</button>
+                    </form>
+                {% else %}
+                    <a class="admin-link" href="{% url 'login' %}">登录</a>
                 {% endif %}
-                {% if request.user.is_staff %}
-                    <a class="admin-link" href="{% url 'admin:index' %}">Admin</a>
-                {% endif %}
-                <form class="logout-form" method="post" action="{% url 'logout' %}">
-                    {% csrf_token %}
-                    <button class="logout-button" type="submit">退出</button>
-                </form>
-            {% else %}
-                <a class="admin-link" href="{% url 'login' %}">登录</a>
-            {% endif %}
-        </div>
-    </header>
+            </div>
+        </header>
+    {% endif %}
 
     <main class="page-shell">
         {% block content %}{% endblock %}

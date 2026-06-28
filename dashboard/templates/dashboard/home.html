@@ -19,6 +19,88 @@
     {% endfor %}
 </section>
 
+{% if bond_reminder.available %}
+    <section class="bond-reminder-panel">
+        <div class="bond-reminder-header">
+            <div>
+                <p class="eyebrow">BondReminder</p>
+                <h2>付息兑付提醒</h2>
+            </div>
+            <div class="bond-reminder-stats">
+                <span>今日 {{ bond_reminder.today_count }} 项</span>
+                <span>本周 {{ bond_reminder.weekly_count }} 项</span>
+            </div>
+        </div>
+
+        {% if not bond_reminder.configured %}
+            <div class="bond-empty-state">尚未完成债券数据或监控日期列配置。</div>
+        {% else %}
+            <div class="bond-sections">
+                <div class="bond-section">
+                    <div class="bond-section-title">
+                        <h3>今日事件</h3>
+                        <span>{{ bond_reminder.today }}</span>
+                    </div>
+                    {% if bond_reminder.today_events %}
+                        <div class="bond-event-list compact">
+                            {% for event in bond_reminder.today_events %}
+                                <article class="bond-event-card">
+                                    <span class="bond-tag" style="background-color: {{ event.color }}">{{ event.event_type }}</span>
+                                    <strong>{{ event.date_str }} {{ event.weekday }}</strong>
+                                    <p>
+                                        {% for column, value in event.display_data.items %}
+                                            {% if value %}{{ value }}{% if not forloop.last %} · {% endif %}{% endif %}
+                                        {% endfor %}
+                                    </p>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="bond-empty-state small">今日暂无付息兑付事项。</div>
+                    {% endif %}
+                </div>
+
+                <div class="bond-section">
+                    <div class="bond-section-title">
+                        <h3>本周事件</h3>
+                        <span>{{ bond_reminder.week_range.label }}</span>
+                    </div>
+                    {% if bond_reminder.weekly_events %}
+                        <div class="bond-table-wrap">
+                            <table class="bond-table">
+                                <thead>
+                                    <tr>
+                                        <th>事件类型</th>
+                                        <th>日期</th>
+                                        <th>星期</th>
+                                        {% for column in bond_reminder.display_columns %}
+                                            <th>{{ column }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in bond_reminder.weekly_events %}
+                                        <tr>
+                                            <td><span class="bond-tag" style="background-color: {{ event.color }}">{{ event.event_type }}</span></td>
+                                            <td class="bond-date">{{ event.date_str }}</td>
+                                            <td>{{ event.weekday }}</td>
+                                            {% for column, value in event.display_data.items %}
+                                                <td>{{ value }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="bond-empty-state small">本周暂无付息兑付事项。</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </section>
+{% endif %}
+
 <section class="content-grid">
     <div class="panel">
         <div class="panel-heading">
