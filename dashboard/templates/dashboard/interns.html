@@ -23,7 +23,6 @@
             <div class="intern-side-actions" id="internSideActions" hidden>
                 <button class="plain-button" type="button" id="editInternBtn">编辑当前</button>
                 <button class="plain-button" type="button" id="copyInternLinkBtn">复制专属链接</button>
-                <button class="danger-button" type="button" id="deleteInternBtn">停用</button>
             </div>
         </aside>
     {% endif %}
@@ -95,6 +94,7 @@
             <label class="wide" id="internShareWrap" hidden>专属链接 <input id="internShareUrl" readonly></label>
         </div>
         <div class="modal-actions">
+            <button class="danger-button" type="button" id="deleteInternInModalBtn" hidden>停用实习生</button>
             <button class="plain-button" type="button" id="cancelInternModalBtn">关闭</button>
             <button class="primary-button" type="submit">保存</button>
         </div>
@@ -183,6 +183,39 @@
     function minutesToSlot(minutes, roundUp = false) {
         const raw = (minutes - dayStartMinutes) / slotMinutes;
         return roundUp ? Math.ceil(raw) : Math.floor(raw);
+    }
+
+    function shareUrlFor(intern) {
+        if (!intern) return '';
+        const token = intern.share_token || (intern.share_url || '').split('/interns/share/').pop();
+        if (!token) return intern.share_url || '';
+        try {
+            return new URL(`/interns/share/${token}`, window.location.origin).href;
+        } catch (exc) {
+            return intern.share_url || '';
+        }
+    }
+
+    async function copyText(text) {
+        if (!text) return false;
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (exc) {
+                // Fall through to the textarea fallback for older or restricted browsers.
+            }
+        }
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return copied;
     }
 
     function weekDays() {
@@ -384,7 +417,8 @@
         $('internName').value = intern ? intern.name : '';
         $('internNote').value = intern ? intern.note || '' : '';
         $('internShareWrap').hidden = !intern;
-        $('internShareUrl').value = intern ? intern.share_url : '';
+        $('internShareUrl').value = intern ? shareUrlFor(intern) : '';
+        $('deleteInternInModalBtn').hidden = !intern;
         $('internModalError').hidden = true;
         $('internModal').hidden = false;
     }
@@ -473,13 +507,12 @@
     if (!shareToken) $('newInternBtn').addEventListener('click', () => openInternModal());
     if (!shareToken) $('editInternBtn').addEventListener('click', () => { if (state.selectedIntern) openInternModal(state.selectedIntern); });
     if (!shareToken) $('copyInternLinkBtn').addEventListener('click', async () => {
-        if (navigator.clipboard && state.selectedIntern && state.selectedIntern.share_url) {
-            await navigator.clipboard.writeText(state.selectedIntern.share_url);
-        }
+        await copyText(shareUrlFor(state.selectedIntern));
     });
-    if (!shareToken) $('deleteInternBtn').addEventListener('click', async () => {
-        if (!state.selectedIntern) return;
-        await request(`/api/interns/${state.selectedIntern.id}/`, { method: 'DELETE' });
+    if (!shareToken) $('deleteInternInModalBtn').addEventListener('click', async () => {
+        if (!state.internModalItem) return;
+        await request(`/api/interns/${state.internModalItem.id}/`, { method: 'DELETE' });
+        closeInternModal();
         state.selectedIntern = null;
         await loadInterns();
         await loadSchedule();

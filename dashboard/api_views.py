@@ -171,6 +171,7 @@ def serialize_intern(intern, request=None):
         'name': intern.name,
         'note': intern.note,
         'share_url': share_url,
+        'share_token': intern.access_token,
         'is_active': intern.is_active,
     }
 

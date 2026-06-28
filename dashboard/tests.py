@@ -103,6 +103,16 @@ class DashboardPageTests(TestCase):
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['status'], 'running')
 
+    def test_bondreminder_upload_button_is_removed(self):
+        self.user_in_group('bond_upload_page_member', '正式成员')
+        self.client.login(username='bond_upload_page_member', password='pass12345')
+
+        response = self.client.get('/tools/bond-reminder/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="bondFile"')
+        self.assertNotContains(response, 'id="uploadBondBtn"')
+
     def test_bondreminder_csv_upload_replaces_database_data_without_persistent_file(self):
         self.user_in_group('bond_csv_member', '正式成员')
         self.client.login(username='bond_csv_member', password='pass12345')
@@ -359,6 +369,16 @@ class DashboardPageTests(TestCase):
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(delete_response.status_code, 200)
         self.assertFalse(Intern.objects.get(id=intern_id).is_active)
+
+    def test_intern_disable_button_lives_in_edit_modal(self):
+        self.user_in_group('intern_disable_member', '正式成员')
+        self.client.login(username='intern_disable_member', password='pass12345')
+
+        response = self.client.get(reverse('dashboard:interns'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="deleteInternBtn"')
+        self.assertContains(response, 'id="deleteInternInModalBtn"')
 
     def test_leave_schedule_can_be_edited_by_any_member(self):
         intern = Intern.objects.create(name='请假对象')

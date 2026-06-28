@@ -596,9 +596,9 @@ function setupEvents() {
   $("customerBirthdayTab").addEventListener("input", () => scheduleCustomerSettingsAutoSave());
   $("customerBirthdayTab").addEventListener("change", () => scheduleCustomerSettingsAutoSave());
 
-  $("uploadBondBtn").addEventListener("click", async () => {
+  $("bondFile").addEventListener("change", async () => {
     const file = $("bondFile").files[0];
-    if (!file) return toast("请选择债券数据文件");
+    if (!file) return;
     const form = new FormData();
     form.append("file", file);
     form.append("header", $("headerRow").value || "0");
@@ -607,7 +607,8 @@ function setupEvents() {
     bindConfig();
     renderPreview();
     renderColumns();
-    toast("债券数据已上传");
+    $("bondFile").value = "";
+    toast("债券数据已上传并缓存");
   });
   $("refreshPreviewBtn").addEventListener("click", async () => {
     state.preview = await api("/api/bond-preview");
