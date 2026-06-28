@@ -408,16 +408,17 @@ def read_table(path, header=0, nrows=None):
     return df
 
 
-def cache_bond_table(source_path, header=0):
+def cache_bond_table(source_path, header=0, source_name=""):
     df = read_table(source_path, header=header)
+    source_label = source_name or Path(source_path).name
     if _database_ready():
-        _save_table(TABLE_BOND, df, source_path=source_path)
+        _save_table(TABLE_BOND, df, source_path=source_label)
     else:
         BOND_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(BOND_CACHE_FILE, index=False, encoding="utf-8-sig")
     config = load_config()
     config["excel_path"] = str(BOND_CACHE_FILE)
-    config["ui_original_path"] = str(source_path)
+    config["ui_original_path"] = source_label
     config["ui_header_row_index"] = int(header)
     save_config(config)
     return df

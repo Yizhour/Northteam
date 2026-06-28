@@ -112,7 +112,7 @@ function bindColumnSelects() {
 }
 
 function renderPreview() {
-  $("bondPath").textContent = state.preview.path ? `当前缓存：${state.preview.path}；共 ${state.preview.total_rows || 0} 行` : "尚未加载债券数据。";
+  $("bondPath").textContent = state.preview.path ? `当前数据库数据：来源 ${state.preview.path}；共 ${state.preview.total_rows || 0} 行` : "尚未加载债券数据。";
   const table = $("previewTable");
   const columns = state.preview.columns || [];
   const rows = state.preview.rows || [];
@@ -608,7 +608,7 @@ function setupEvents() {
     renderPreview();
     renderColumns();
     $("bondFile").value = "";
-    toast("债券数据已上传并缓存");
+    toast("债券数据已上传并写入数据库");
   });
   $("refreshPreviewBtn").addEventListener("click", async () => {
     state.preview = await api("/api/bond-preview");

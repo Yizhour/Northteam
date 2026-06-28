@@ -50,6 +50,8 @@
     </section>
 </section>
 
+<div class="copy-toast" id="copyToast" role="status" hidden></div>
+
 {% if not intern_share_token %}
 <div class="modal-backdrop" id="scheduleModal" hidden>
     <form class="schedule-modal" id="scheduleForm">
@@ -218,6 +220,15 @@
         return copied;
     }
 
+    function showCopyNotice(message, isError = false) {
+        const node = $('copyToast');
+        node.textContent = message;
+        node.classList.toggle('error', isError);
+        node.hidden = false;
+        clearTimeout(node._timer);
+        node._timer = setTimeout(() => { node.hidden = true; }, 2200);
+    }
+
     function weekDays() {
         const base = parseDate(state.weekStart);
         return weekdays.map((label, index) => {
@@ -289,10 +300,10 @@
         }
         const days = weekDays();
         const slots = timeSlots();
-        const gridStyle = `position:relative;display:grid;min-width:1040px;background:#fff;grid-template-columns:112px repeat(${days.length}, minmax(128px, 1fr));grid-template-rows:auto repeat(${totalSlots}, minmax(34px, auto));`;
-        const headStyle = 'padding:10px;color:#334155;background:#eef3f8;font-size:13px;font-weight:700;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;';
-        const timeStyle = 'padding:8px 10px;color:#334155;background:#eef3f8;font-size:12px;line-height:1.25;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;';
-        const cellStyle = 'min-height:34px;padding:0;background:#fbfcfe;border:0;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;cursor:crosshair;font:inherit;text-align:center;';
+        const gridStyle = `position:relative;display:grid;width:100%;min-width:0;background:#fff;grid-template-columns:72px repeat(5, minmax(0, 1fr)) repeat(2, minmax(0, .7fr));grid-template-rows:auto repeat(${totalSlots}, minmax(30px, auto));`;
+        const headStyle = 'box-sizing:border-box;padding:8px 4px;color:#334155;background:#eef3f8;font-size:12px;font-weight:700;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;overflow:hidden;';
+        const timeStyle = 'box-sizing:border-box;padding:6px 4px;color:#334155;background:#eef3f8;font-size:11px;line-height:1.2;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;white-space:normal;';
+        const cellStyle = 'box-sizing:border-box;min-height:30px;padding:0;background:#fbfcfe;border:0;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;cursor:crosshair;font:inherit;text-align:center;';
         const timeColumn = slots.map((slot) => `<div class="time-column schedule-time-slot" style="grid-column:1;grid-row:${slot.index + 2};${timeStyle}">${slot.label}</div>`).join('');
         const dayCells = days.map((day, dayIndex) => cellsForDay(day).map((cell) => `
             <button class="schedule-cell ${isCellSelected(day.date, cell) ? 'selecting' : ''}" type="button" data-date="${day.date}" data-start-slot="${cell.startSlot}" data-end-slot="${cell.endSlot}" style="grid-column:${dayIndex + 2};grid-row:${cell.startSlot + 2} / ${cell.endSlot + 2};${cellStyle}">
@@ -513,7 +524,8 @@
     if (!shareToken) $('newInternBtn').addEventListener('click', () => openInternModal());
     if (!shareToken) $('editInternBtn').addEventListener('click', () => { if (state.selectedIntern) openInternModal(state.selectedIntern); });
     if (!shareToken) $('copyInternLinkBtn').addEventListener('click', async () => {
-        await copyText(shareUrlFor(state.selectedIntern));
+        const copied = await copyText(shareUrlFor(state.selectedIntern));
+        showCopyNotice(copied ? '专属链接已复制' : '复制失败，请手动复制', !copied);
     });
     if (!shareToken) $('deleteInternInModalBtn').addEventListener('click', async () => {
         if (!state.internModalItem) return;

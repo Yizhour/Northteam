@@ -212,14 +212,16 @@ def api_upload_bond_data(request):
     path = None
     try:
         header = int(request.POST.get('header', request.POST.get('header_row_index', 0)) or 0)
-        path = save_upload(request.FILES.get('file'), ALLOWED_TABLE_EXTENSIONS)
-        df = cache_bond_table(path, header)
+        uploaded_file = request.FILES.get('file')
+        source_name = uploaded_file.name if uploaded_file else ''
+        path = save_upload(uploaded_file, ALLOWED_TABLE_EXTENSIONS)
+        df = cache_bond_table(path, header, source_name=source_name)
         config = load_config()
         columns = [str(col) for col in df.columns]
         reconcile_columns(config, columns)
         save_config(config)
         scheduler_service.restart()
-        append_log(f'债券数据已上传并缓存: {path.name}')
+        append_log(f'债券数据已上传并写入数据库: {source_name or path.name}')
         return ok(bond_preview())
     except Exception as exc:
         return error(exc)

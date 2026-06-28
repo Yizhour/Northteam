@@ -150,6 +150,7 @@ class DashboardPageTests(TestCase):
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['total_rows'], 1)
         self.assertEqual(payload['data']['rows'][0]['code'], 'B001')
+        self.assertEqual(payload['data']['path'], 'bonds.csv')
         self.assertEqual(config_payload['data']['date_columns'], ['pay_date'])
         self.assertEqual(config_payload['data']['display_columns'], ['code', 'pay_date'])
         self.assertEqual(after_files, before_files)
@@ -379,7 +380,8 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'id="deleteInternBtn"')
         self.assertContains(response, 'id="deleteInternInModalBtn"')
-        self.assertContains(response, 'position:relative;display:grid')
+        self.assertContains(response, 'id="copyToast"')
+        self.assertContains(response, 'position:relative;display:grid;width:100%;min-width:0')
 
     def test_leave_schedule_can_be_edited_by_any_member(self):
         intern = Intern.objects.create(name='请假对象')
