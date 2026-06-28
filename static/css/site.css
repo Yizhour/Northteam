@@ -195,6 +195,77 @@ a {
     border-radius: 6px;
 }
 
+.account-panel {
+    max-width: 620px;
+    padding: 22px;
+    background: #ffffff;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-soft);
+}
+
+.account-form {
+    display: grid;
+    gap: 16px;
+}
+
+.account-form label {
+    display: grid;
+    gap: 7px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.account-form input {
+    width: 100%;
+    padding: 10px 12px;
+    color: var(--color-text);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 400;
+}
+
+.field-help {
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+}
+
+.field-help ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.field-error {
+    color: #9f1239;
+    font-size: 12px;
+}
+
+.account-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.success-state {
+    display: grid;
+    gap: 10px;
+}
+
+.success-state strong {
+    color: #166534;
+    font-size: 18px;
+}
+
+.success-state p {
+    margin-bottom: 8px;
+    color: var(--color-muted);
+}
+
 .page-shell {
     width: min(1180px, calc(100% - 36px));
     margin: 0 auto;
@@ -1069,6 +1140,11 @@ h2 {
 
     .form-grid {
         grid-template-columns: 1fr;
+    }
+
+    .account-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
     }
 }
 

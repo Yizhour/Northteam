@@ -20,6 +20,10 @@
       <div class="user-actions">
         <template v-if="session.authenticated">
           <span class="user-name">{{ session.username }}</span>
+          <a class="admin-link" href="/accounts/password/change/">
+            <KeyRound :size="15" />
+            修改密码
+          </a>
           <a v-if="session.can_manage_permissions" class="admin-link" href="/admin/access-control/">权限控制台</a>
           <a v-if="session.is_staff" class="admin-link" href="/admin/">Admin</a>
           <button class="logout-button" type="button" @click="handleLogout">
@@ -47,7 +51,7 @@
 <script setup>
 import { onMounted, provide, reactive } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { LogIn, LogOut } from '@lucide/vue';
+import { KeyRound, LogIn, LogOut } from '@lucide/vue';
 
 import { api, logout } from './api';
 

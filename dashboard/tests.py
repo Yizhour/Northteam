@@ -192,6 +192,32 @@ class DashboardPageTests(TestCase):
         self.assertContains(response, 'NorthTeam2 工作台')
         self.assertContains(response, '登录')
 
+    def test_user_can_change_own_password(self):
+        User.objects.create_user(username='password_user', first_name='password_user', password='pass12345')
+
+        anonymous_response = self.client.get(reverse('password_change'))
+        self.assertEqual(anonymous_response.status_code, 302)
+        self.assertIn('/accounts/login/', anonymous_response['Location'])
+
+        self.client.login(username='password_user', password='pass12345')
+        page_response = self.client.get(reverse('password_change'))
+        self.assertEqual(page_response.status_code, 200)
+
+        change_response = self.client.post(
+            reverse('password_change'),
+            data={
+                'old_password': 'pass12345',
+                'new_password1': 'BetterPass12345!',
+                'new_password2': 'BetterPass12345!',
+            },
+        )
+
+        self.assertEqual(change_response.status_code, 302)
+        self.assertEqual(change_response['Location'], reverse('password_change_done'))
+        self.client.logout()
+        self.assertFalse(self.client.login(username='password_user', password='pass12345'))
+        self.assertTrue(self.client.login(username='password_user', password='BetterPass12345!'))
+
     def test_vue_session_api_returns_no_anonymous_navigation(self):
         response = self.client.get('/api/session/')
         payload = json.loads(response.content)

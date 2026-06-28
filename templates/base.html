@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}NorthTeam2 工作台{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/site.css' %}?v=20260628-3">
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v=20260628-4">
 </head>
 <body>
     {% if not hide_chrome %}
@@ -24,6 +24,7 @@
             <div class="user-actions">
                 {% if request.user.is_authenticated %}
                     <span class="user-name">{{ request.user.get_username }}</span>
+                    <a class="admin-link" href="{% url 'password_change' %}">修改密码</a>
                     {% if can_manage_permissions %}
                         <a class="admin-link" href="{% url 'access_control' %}">权限控制台</a>
                     {% endif %}
