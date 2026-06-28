@@ -1,7 +1,9 @@
 import json
 from datetime import datetime, timedelta
+from email.mime.text import MIMEText
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import Group, User
@@ -157,6 +159,76 @@ class DashboardPageTests(TestCase):
         self.assertEqual(config_payload['data']['display_columns'], ['code', 'pay_date'])
         self.assertEqual(logs_payload['data'], [])
         self.assertEqual(after_files, before_files)
+
+    def test_mailer_deduplicates_receivers_before_sending(self):
+        from tools.bondreminder.app import mailer
+
+        sent_receivers = []
+
+        class FakeSMTPSSL:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def login(self, sender, password):
+                pass
+
+            def sendmail(self, sender, receivers, message_bytes):
+                sent_receivers.append(receivers)
+
+            def quit(self):
+                pass
+
+            def close(self):
+                pass
+
+        mailer._last_successful_send_at = 0.0
+        mailer._last_successful_candidate = None
+        with patch.object(mailer.smtplib, 'SMTP_SSL', FakeSMTPSSL), patch.object(mailer.smtplib, 'SMTP') as smtp:
+            result = mailer.send_mail(
+                'sender@example.com',
+                'secret',
+                ['user@example.com', ' User@example.com ', 'other@example.com'],
+                MIMEText('body', 'plain', 'utf-8'),
+            )
+
+        self.assertEqual(result['port'], 465)
+        self.assertEqual(sent_receivers, [['user@example.com', 'other@example.com']])
+        smtp.assert_not_called()
+
+    def test_mailer_stops_retrying_after_delivery_attempt(self):
+        from tools.bondreminder.app import mailer
+
+        smtp_ssl_calls = []
+
+        class TimeoutAfterDataSMTP:
+            def __init__(self, *args, **kwargs):
+                smtp_ssl_calls.append(args)
+
+            def login(self, sender, password):
+                pass
+
+            def sendmail(self, sender, receivers, message_bytes):
+                raise TimeoutError('timed out after DATA')
+
+            def quit(self):
+                pass
+
+            def close(self):
+                pass
+
+        mailer._last_successful_send_at = 0.0
+        mailer._last_successful_candidate = None
+        with patch.object(mailer.smtplib, 'SMTP_SSL', TimeoutAfterDataSMTP), patch.object(mailer.smtplib, 'SMTP') as smtp:
+            with self.assertRaises(mailer.DeliveryAttemptedError):
+                mailer.send_mail(
+                    'sender@example.com',
+                    'secret',
+                    ['user@example.com'],
+                    MIMEText('body', 'plain', 'utf-8'),
+                )
+
+        self.assertEqual(len(smtp_ssl_calls), 1)
+        smtp.assert_not_called()
 
     def test_super_admin_can_open_access_control_and_admin(self):
         User.objects.create_superuser('root', 'root@example.com', 'pass12345', first_name='root')

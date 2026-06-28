@@ -30,6 +30,17 @@ class BondReminder:
         full_msg = append_log(message)
         self.logs.append(full_msg)
 
+    def unique_receivers(self, receivers):
+        result = []
+        seen = set()
+        for receiver in receivers:
+            email = str(receiver or "").strip()
+            key = email.lower()
+            if email and key not in seen:
+                result.append(email)
+                seen.add(key)
+        return result
+
     def get_week_range(self):
         today = datetime.now().date()
         start_of_week = today - timedelta(days=today.weekday())
@@ -164,7 +175,7 @@ class BondReminder:
         sender = self.config.get("sender_email")
         password = self.config.get("auth_code")
         receiver_list_cfg = self.config.get("receiver_list", [])
-        receivers = [item.get("email", "").strip() for item in receiver_list_cfg if item.get("email", "").strip()]
+        receivers = self.unique_receivers(item.get("email", "") for item in receiver_list_cfg)
 
         if not sender or not password:
             self.log("错误: 未配置发件人邮箱或授权码。")
@@ -364,7 +375,7 @@ class BondReminder:
             f"BondTrigger自定义任务通知: {task_name}" if task.get("send_type") == "sms" else f"自定义任务：{task_name}"
         )
         body = task.get("content") or f"任务通知: {task_name}\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        receivers = task.get("receivers", [])
+        receivers = self.unique_receivers(task.get("receivers", []))
         if not receivers:
             self.log("错误: 收件人列表为空")
             return

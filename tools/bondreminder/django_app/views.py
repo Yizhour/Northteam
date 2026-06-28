@@ -2,6 +2,7 @@ import json
 import mimetypes
 import re
 import tempfile
+import threading
 from pathlib import Path
 
 from django.core.exceptions import PermissionDenied
@@ -44,6 +45,7 @@ from tools.bondreminder.app.storage import (
 ALLOWED_TABLE_EXTENSIONS = {'.xlsx', '.xls', '.csv'}
 ALLOWED_IDENTITY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.pdf'}
 STATIC_DIR = APP_DIR / 'static'
+RUN_TASK_LOCK = threading.Lock()
 
 
 def ok(data=None, **kwargs):
@@ -241,28 +243,43 @@ def api_bond_preview(request):
 @require_api_access(FeatureAccess.ACTION_USE)
 @require_http_methods(['POST'])
 def api_run_weekly(request):
-    logs = BondReminder(load_config()).run_weekly_check()
-    return ok({'logs': logs})
+    if not RUN_TASK_LOCK.acquire(blocking=False):
+        return error('发送任务正在执行，请稍后再试。', status=409)
+    try:
+        logs = BondReminder(load_config()).run_weekly_check()
+        return ok({'logs': logs})
+    finally:
+        RUN_TASK_LOCK.release()
 
 
 @require_api_access(FeatureAccess.ACTION_USE)
 @require_http_methods(['POST'])
 def api_run_daily(request):
-    logs = BondReminder(load_config()).run_daily_check()
-    return ok({'logs': logs})
+    if not RUN_TASK_LOCK.acquire(blocking=False):
+        return error('发送任务正在执行，请稍后再试。', status=409)
+    try:
+        logs = BondReminder(load_config()).run_daily_check()
+        return ok({'logs': logs})
+    finally:
+        RUN_TASK_LOCK.release()
 
 
 @require_api_access(FeatureAccess.ACTION_USE)
 @require_http_methods(['POST'])
 def api_run_manual(request):
-    config = load_config()
-    logs = []
-    reminder = BondReminder(config)
-    if config.get('weekly_enabled', True):
-        logs.extend(reminder.run_weekly_check())
-    if config.get('daily_enabled', False):
-        logs.extend(BondReminder(config).run_daily_check())
-    return ok({'logs': logs})
+    if not RUN_TASK_LOCK.acquire(blocking=False):
+        return error('发送任务正在执行，请稍后再试。', status=409)
+    try:
+        config = load_config()
+        logs = []
+        reminder = BondReminder(config)
+        if config.get('weekly_enabled', True):
+            logs.extend(reminder.run_weekly_check())
+        if config.get('daily_enabled', False):
+            logs.extend(BondReminder(config).run_daily_check())
+        return ok({'logs': logs})
+    finally:
+        RUN_TASK_LOCK.release()
 
 
 @require_api_access(FeatureAccess.ACTION_VIEW)

@@ -18,6 +18,10 @@ _last_successful_candidate = None
 _SMTP_LOCAL_HOSTNAME = "localhost"
 
 
+class DeliveryAttemptedError(RuntimeError):
+    pass
+
+
 def _configured_interval():
     try:
         from .storage import load_config
@@ -56,9 +60,61 @@ def _normalize_message_headers(message):
     return message
 
 
+def _unique_receivers(receivers):
+    result = []
+    seen = set()
+    for receiver in receivers:
+        email = str(receiver or "").strip()
+        key = email.lower()
+        if email and key not in seen:
+            result.append(email)
+            seen.add(key)
+    return result
+
+
+def _send_with_candidate(mode, candidate_port, host, timeout, context, sender, password, receivers, message_bytes):
+    server = None
+    delivery_started = False
+    delivery_done = False
+    try:
+        if mode == "ssl":
+            server = smtplib.SMTP_SSL(
+                host,
+                candidate_port,
+                timeout=timeout,
+                context=context,
+                local_hostname=_SMTP_LOCAL_HOSTNAME,
+            )
+        else:
+            server = smtplib.SMTP(host, candidate_port, timeout=timeout, local_hostname=_SMTP_LOCAL_HOSTNAME)
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+        server.login(sender, password)
+        delivery_started = True
+        server.sendmail(sender, receivers, message_bytes)
+        delivery_done = True
+        try:
+            server.quit()
+        except Exception:
+            pass
+    except Exception as exc:
+        if delivery_started:
+            raise DeliveryAttemptedError(f"{mode}:{candidate_port} 投递阶段失败，已停止重试以避免重复发送: {exc}") from exc
+        raise
+    finally:
+        if server is not None and not delivery_done:
+            try:
+                server.close()
+            except Exception:
+                pass
+
+
 def send_mail(sender, password, receivers, message):
     global _last_successful_candidate, _last_successful_send_at
-    receivers = receivers if isinstance(receivers, list) else [receivers]
+    receivers = _unique_receivers(receivers if isinstance(receivers, list) else [receivers])
+    if not receivers:
+        raise RuntimeError("收件人列表为空")
     host = DEFAULT_SMTP_HOST
     port = int(DEFAULT_SMTP_PORT)
     context = ssl.create_default_context()
@@ -100,26 +156,12 @@ def send_mail(sender, password, receivers, message):
 
         for mode, candidate_port in candidates:
             try:
-                if mode == "ssl":
-                    with smtplib.SMTP_SSL(
-                        host,
-                        candidate_port,
-                        timeout=timeout,
-                        context=context,
-                        local_hostname=_SMTP_LOCAL_HOSTNAME,
-                    ) as server:
-                        server.login(sender, password)
-                        server.sendmail(sender, receivers, message_bytes)
-                else:
-                    with smtplib.SMTP(host, candidate_port, timeout=timeout, local_hostname=_SMTP_LOCAL_HOSTNAME) as server:
-                        server.ehlo()
-                        server.starttls(context=context)
-                        server.ehlo()
-                        server.login(sender, password)
-                        server.sendmail(sender, receivers, message_bytes)
+                _send_with_candidate(mode, candidate_port, host, timeout, context, sender, password, receivers, message_bytes)
                 _last_successful_send_at = time.monotonic()
                 _last_successful_candidate = (mode, candidate_port)
                 return {"mode": mode, "port": candidate_port, "interval_seconds": interval}
+            except DeliveryAttemptedError:
+                raise
             except Exception as exc:
                 errors.append(f"{mode}:{candidate_port} {exc}")
     raise RuntimeError("; ".join(errors))

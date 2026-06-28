@@ -164,7 +164,6 @@
       <nav class="tabs customer-tabs" aria-label="客户管理系统功能">
         <button class="tab customer-tab active" data-tab="customerListTab">1. 客户列表</button>
         <button class="tab customer-tab" data-tab="customerBirthdayTab">2. 生日提醒配置</button>
-        <button class="tab customer-tab" data-tab="customerLogsTab">3. 运行日志</button>
       </nav>
 
       <section id="customerListTab" class="tab-panel customer-tab-panel active">
@@ -204,13 +203,6 @@
         </section>
       </section>
 
-      <section id="customerLogsTab" class="tab-panel customer-tab-panel">
-        <div class="toolbar">
-          <button id="refreshCustomerLogsBtn">刷新日志</button>
-          <button id="clearCustomerLogsBtn" class="danger">清空日志</button>
-        </div>
-        <pre id="customerLogBox" class="log-box"></pre>
-      </section>
     </section>
   </main>
 
@@ -313,6 +305,6 @@
   <script>
     window.BOND_REMINDER_BASE_PATH = "{{ base_path }}";
   </script>
-  <script src="{{ base_path }}/static/js/app.js"></script>
+  <script src="{{ base_path }}/static/js/app.js?v=20260628-dupfix"></script>
 </body>
 </html>

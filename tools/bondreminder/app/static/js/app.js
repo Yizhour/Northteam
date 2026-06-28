@@ -11,6 +11,7 @@ const state = {
   customerSettingsTimer: null,
   customerDataTimer: null,
   lastLogsText: "",
+  runningActions: new Set(),
 };
 
 const $ = (id) => document.getElementById(id);
@@ -549,7 +550,6 @@ function renderLogs(logs) {
   if (text === state.lastLogsText) return;
   state.lastLogsText = text;
   updateLogBox($("logBox"), text);
-  updateLogBox($("customerLogBox"), text);
 }
 
 function updateLogBox(node, text) {
@@ -565,6 +565,22 @@ async function refreshLogs() {
   renderLogs(await api("/api/logs?limit=2000"));
 }
 
+async function runExclusive(actionKey, buttonId, callback) {
+  if (state.runningActions.has(actionKey)) {
+    toast("任务正在执行，请勿重复点击");
+    return;
+  }
+  const button = $(buttonId);
+  state.runningActions.add(actionKey);
+  if (button) button.disabled = true;
+  try {
+    await callback();
+  } finally {
+    state.runningActions.delete(actionKey);
+    if (button) button.disabled = false;
+  }
+}
+
 function setupEvents() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -573,7 +589,7 @@ function setupEvents() {
       system.querySelectorAll(".tab-panel").forEach((node) => node.classList.remove("active"));
       tab.classList.add("active");
       $(tab.dataset.tab).classList.add("active");
-      if (tab.dataset.tab === "logsTab" || tab.dataset.tab === "customerLogsTab") refreshLogs();
+      if (tab.dataset.tab === "logsTab") refreshLogs();
     });
   });
 
@@ -706,26 +722,27 @@ function setupEvents() {
   });
 
   $("runManualBtn").addEventListener("click", async () => {
-    await saveConfig();
-    await api("/api/run/manual", { method: "POST" });
-    await refreshLogs();
+    await runExclusive("manual", "runManualBtn", async () => {
+      await saveConfig();
+      await api("/api/run/manual", { method: "POST" });
+      await refreshLogs();
+    });
   });
   $("runWeeklyBtn").addEventListener("click", async () => {
-    await saveConfig();
-    await api("/api/run/weekly", { method: "POST" });
-    await refreshLogs();
+    await runExclusive("weekly", "runWeeklyBtn", async () => {
+      await saveConfig();
+      await api("/api/run/weekly", { method: "POST" });
+      await refreshLogs();
+    });
   });
   $("runDailyBtn").addEventListener("click", async () => {
-    await saveConfig();
-    await api("/api/run/daily", { method: "POST" });
-    await refreshLogs();
+    await runExclusive("daily", "runDailyBtn", async () => {
+      await saveConfig();
+      await api("/api/run/daily", { method: "POST" });
+      await refreshLogs();
+    });
   });
   $("clearLogsBtn").addEventListener("click", async () => {
-    await api("/api/logs", { method: "DELETE" });
-    await refreshLogs();
-  });
-  $("refreshCustomerLogsBtn").addEventListener("click", refreshLogs);
-  $("clearCustomerLogsBtn").addEventListener("click", async () => {
     await api("/api/logs", { method: "DELETE" });
     await refreshLogs();
   });
@@ -834,7 +851,7 @@ function setupEvents() {
 setupEvents();
 loadAll().catch((err) => toast(err.message));
 setInterval(() => {
-  if ($("logsTab").classList.contains("active") || $("customerLogsTab").classList.contains("active")) {
+  if ($("logsTab").classList.contains("active")) {
     refreshLogs().catch(() => {});
   }
 }, 5000);
