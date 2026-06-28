@@ -423,8 +423,8 @@ class DashboardPageTests(TestCase):
             created_by=creator,
             schedule_type=InternSchedule.TYPE_LEAVE,
             title='请假',
-            start_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T13:00:00')),
-            end_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T14:00:00')),
+            start_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T14:00:00')),
+            end_time=timezone.make_aware(datetime.fromisoformat(f'{self.schedule_day()}T15:00:00')),
         )
         self.client.login(username='leave_editor', password='pass12345')
 
@@ -474,6 +474,22 @@ class DashboardPageTests(TestCase):
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_payload['week_end'], (datetime.fromisoformat(self.schedule_day()).date() + timedelta(days=6)).isoformat())
         self.assertEqual(list_payload['schedules'][0]['title'], '周末上午安排')
+
+    def test_member_cannot_create_schedule_during_lunch_break(self):
+        intern = Intern.objects.create(name='午休安排对象')
+        self.user_in_group('lunch_schedule_member', '正式成员')
+        self.client.login(username='lunch_schedule_member', password='pass12345')
+
+        response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(self.schedule_payload(intern, start='12:00', end='13:30', title='午休安排')),
+            content_type='application/json',
+        )
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('午休时间', payload['error'])
+        self.assertFalse(InternSchedule.objects.filter(intern=intern).exists())
 
     def test_member_can_create_but_not_edit_others_schedule_and_conflicts_are_rejected(self):
         intern = Intern.objects.create(name='成员安排对象')

@@ -151,8 +151,12 @@ class InternSchedule(models.Model):
                 errors['end_time'] = '工作安排不能跨天。'
             work_start = time(9, 0)
             work_end = time(18, 0)
+            lunch_start = time(12, 0)
+            lunch_end = time(13, 30)
             if local_start.time() < work_start or local_end.time() > work_end:
                 errors['start_time'] = '工作安排时间必须在 9:00-18:00 之间。'
+            if local_start.time() < lunch_end and local_end.time() > lunch_start:
+                errors['start_time'] = '12:00-13:30 为午休时间，不能安排工作或请假。'
 
         if self.intern_id and self.start_time and self.end_time:
             conflicts = InternSchedule.objects.filter(

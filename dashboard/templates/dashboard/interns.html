@@ -123,11 +123,16 @@
     const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
     const dayStartMinutes = 9 * 60;
     const dayEndMinutes = 18 * 60;
+    const lunchStartMinutes = 12 * 60;
+    const lunchEndMinutes = 13 * 60 + 30;
     const slotMinutes = 30;
     const totalSlots = (dayEndMinutes - dayStartMinutes) / slotMinutes;
+    const lunchStartSlot = (lunchStartMinutes - dayStartMinutes) / slotMinutes;
+    const lunchEndSlot = (lunchEndMinutes - dayStartMinutes) / slotMinutes;
+    const lunchRemovedSlots = lunchEndSlot - lunchStartSlot;
     const weekendCells = [
-        { label: '上午（尽量不要周末布置工作）', startSlot: 0, endSlot: 6 },
-        { label: '下午（尽量不要周末布置工作）', startSlot: 6, endSlot: totalSlots },
+        { label: '上午（尽量不要周末布置工作）', startSlot: 0, endSlot: lunchStartSlot },
+        { label: '下午（尽量不要周末布置工作）', startSlot: lunchEndSlot, endSlot: totalSlots },
     ];
     const $ = (id) => document.getElementById(id);
 
@@ -246,14 +251,47 @@
         });
     }
 
+    function visibleRows() {
+        const rows = [];
+        timeSlots().forEach((slot) => {
+            if (slot.index === lunchStartSlot) {
+                rows.push({
+                    type: 'lunch',
+                    index: lunchStartSlot,
+                    startSlot: lunchStartSlot,
+                    endSlot: lunchEndSlot,
+                    label: '午休',
+                    timeLabel: `${formatMinutes(lunchStartMinutes)}-${formatMinutes(lunchEndMinutes)}`,
+                });
+            }
+            if (slot.index >= lunchStartSlot && slot.index < lunchEndSlot) return;
+            rows.push({
+                type: 'work',
+                index: slot.index,
+                startSlot: slot.index,
+                endSlot: slot.index + 1,
+                label: slot.label,
+                timeLabel: slot.label,
+            });
+        });
+        return rows;
+    }
+
+    function slotToDisplayLine(slot) {
+        if (slot <= lunchStartSlot) return slot;
+        if (slot >= lunchEndSlot) return slot - lunchRemovedSlots + 1;
+        return lunchStartSlot;
+    }
+
     function cellsForDay(day) {
         if (day.isWeekend) return weekendCells;
-        const slots = timeSlots();
-        return Array.from({ length: totalSlots }, (_, index) => ({
-            label: slots[index].label,
-            startSlot: index,
-            endSlot: index + 1,
-        }));
+        return visibleRows()
+            .filter((row) => row.type === 'work')
+            .map((row) => ({
+                label: row.label,
+                startSlot: row.startSlot,
+                endSlot: row.endSlot,
+            }));
     }
 
     function scheduleBlocks(days) {
@@ -265,8 +303,10 @@
             const typeStyle = item.schedule_type === 'leave'
                 ? 'color:#475569;background:#e5e7eb;border-color:#cbd5e1;'
                 : 'color:#173b34;background:#e8f5f0;border-color:#b9ddcf;';
+            const startLine = slotToDisplayLine(startSlot);
+            const endLine = Math.max(startLine + 1, slotToDisplayLine(endSlot));
             return `
-                <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}" style="grid-column:${dayIndex + 2};grid-row:${startSlot + 2} / ${endSlot + 2};display:grid;gap:4px;width:auto;min-height:0;margin:3px 6px;padding:8px;border:1px solid;border-radius:6px;cursor:pointer;font:inherit;text-align:left;z-index:2;overflow:hidden;${typeStyle}">
+                <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}" style="grid-column:${dayIndex + 2};grid-row:${startLine + 2} / ${endLine + 2};display:grid;gap:4px;width:auto;min-height:0;margin:3px 6px;padding:8px;border:1px solid;border-radius:6px;cursor:pointer;font:inherit;text-align:left;z-index:2;overflow:hidden;${typeStyle}">
                     <span>${timePart(item.start_time)}-${timePart(item.end_time)}</span>
                     <strong>${item.title}</strong>
                     <small>${item.created_by_name}</small>
@@ -299,22 +339,25 @@
             $('workBtn').hidden = !state.capabilities.can_create_work;
         }
         const days = weekDays();
-        const slots = timeSlots();
-        const gridStyle = `position:relative;display:grid;width:100%;min-width:0;background:#fff;grid-template-columns:72px repeat(5, minmax(0, 1fr)) repeat(2, minmax(0, .7fr));grid-template-rows:auto repeat(${totalSlots}, minmax(30px, auto));`;
+        const rows = visibleRows();
+        const gridStyle = `position:relative;display:grid;width:100%;min-width:0;background:#fff;grid-template-columns:72px repeat(5, minmax(0, 1fr)) repeat(2, minmax(0, .7fr));grid-template-rows:auto repeat(${rows.length}, minmax(30px, auto));`;
         const headStyle = 'box-sizing:border-box;padding:8px 4px;color:#334155;background:#eef3f8;font-size:12px;font-weight:700;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;overflow:hidden;';
         const timeStyle = 'box-sizing:border-box;padding:6px 4px;color:#334155;background:#eef3f8;font-size:11px;line-height:1.2;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;white-space:normal;';
+        const lunchTimeStyle = 'box-sizing:border-box;padding:6px 4px;color:#ffffff;background:#263241;font-size:11px;line-height:1.2;border-right:1px solid #1f2937;border-bottom:1px solid #1f2937;white-space:normal;font-weight:700;';
         const cellStyle = 'box-sizing:border-box;min-height:30px;padding:0;background:#fbfcfe;border:0;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;cursor:crosshair;font:inherit;text-align:center;';
-        const timeColumn = slots.map((slot) => `<div class="time-column schedule-time-slot" style="grid-column:1;grid-row:${slot.index + 2};${timeStyle}">${slot.label}</div>`).join('');
+        const timeColumn = rows.map((row, rowIndex) => `<div class="time-column schedule-time-slot${row.type === 'lunch' ? ' lunch' : ''}" style="grid-column:1;grid-row:${rowIndex + 2};${row.type === 'lunch' ? lunchTimeStyle : timeStyle}">${row.timeLabel}</div>`).join('');
         const dayCells = days.map((day, dayIndex) => cellsForDay(day).map((cell) => `
-            <button class="schedule-cell ${isCellSelected(day.date, cell) ? 'selecting' : ''}" type="button" data-date="${day.date}" data-start-slot="${cell.startSlot}" data-end-slot="${cell.endSlot}" style="grid-column:${dayIndex + 2};grid-row:${cell.startSlot + 2} / ${cell.endSlot + 2};${cellStyle}">
+            <button class="schedule-cell ${isCellSelected(day.date, cell) ? 'selecting' : ''}" type="button" data-date="${day.date}" data-start-slot="${cell.startSlot}" data-end-slot="${cell.endSlot}" style="grid-column:${dayIndex + 2};grid-row:${slotToDisplayLine(cell.startSlot) + 2} / ${slotToDisplayLine(cell.endSlot) + 2};${cellStyle}">
                 ${day.isWeekend ? `<span class="weekend-cell-label">${cell.label}</span>` : ''}
             </button>`).join('')).join('');
+        const lunchRow = `<div class="schedule-lunch-row" style="grid-column:2 / 9;grid-row:${slotToDisplayLine(lunchStartSlot) + 2} / ${slotToDisplayLine(lunchEndSlot) + 2};display:flex;align-items:center;justify-content:center;color:#ffffff;background:#263241;border-bottom:1px solid #1f2937;font-size:13px;font-weight:700;letter-spacing:0;z-index:1;">午休 12:00-13:30</div>`;
         $('scheduleTable').style.cssText = gridStyle;
         $('scheduleTable').innerHTML = `
             <div class="schedule-head time-column" style="grid-column:1;grid-row:1;${headStyle}">时间</div>
             ${days.map((day, dayIndex) => `<div class="schedule-head day-column" style="grid-column:${dayIndex + 2};grid-row:1;text-align:center;${headStyle}"><strong>${day.label}</strong><span>${day.date}</span></div>`).join('')}
             ${timeColumn}
             ${dayCells}
+            ${lunchRow}
             ${scheduleBlocks(days)}
         `;
     }
