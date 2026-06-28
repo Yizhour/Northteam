@@ -393,10 +393,15 @@ def read_table(path, header=0, nrows=None):
             return df
     ext = path.suffix.lower()
     if ext == ".csv":
-        try:
-            df = pd.read_csv(path, header=header, encoding="utf-8-sig", nrows=nrows)
-        except UnicodeDecodeError:
-            df = pd.read_csv(path, header=header, encoding="gbk", nrows=nrows)
+        last_error = None
+        for encoding in ["utf-8-sig", "gb18030", "gbk"]:
+            try:
+                df = pd.read_csv(path, header=header, encoding=encoding, nrows=nrows, sep=None, engine="python")
+                break
+            except UnicodeDecodeError as exc:
+                last_error = exc
+        else:
+            raise last_error
     else:
         df = pd.read_excel(path, header=header, nrows=nrows)
     df.columns = [str(col).strip().replace("\n", "") for col in df.columns]

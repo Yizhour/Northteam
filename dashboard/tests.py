@@ -1,7 +1,9 @@
 import json
 from datetime import datetime, timedelta
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
@@ -97,6 +99,47 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['status'], 'running')
+
+    def test_bondreminder_csv_upload_replaces_database_data_without_persistent_file(self):
+        self.user_in_group('bond_csv_member', '正式成员')
+        self.client.login(username='bond_csv_member', password='pass12345')
+        self.client.post(
+            '/tools/bond-reminder/api/config',
+            data=json.dumps(
+                {
+                    'date_columns': ['old_date_column'],
+                    'display_columns': ['old_display_column'],
+                    'default_column_mappings': {
+                        'date_columns': ['pay_date'],
+                        'display_columns': ['code', 'pay_date'],
+                    },
+                }
+            ),
+            content_type='application/json',
+        )
+        upload_dir = Path('tools/bondreminder/uploads')
+        before_files = {path.name for path in upload_dir.iterdir()}
+        upload = SimpleUploadedFile(
+            'bonds.csv',
+            b'code,pay_date\nB001,2026-06-28\n',
+            content_type='text/csv',
+        )
+
+        response = self.client.post(
+            '/tools/bond-reminder/api/upload/bond-data',
+            data={'file': upload, 'header': '0'},
+        )
+        payload = json.loads(response.content)
+        config_payload = json.loads(self.client.get('/tools/bond-reminder/api/config').content)
+        after_files = {path.name for path in upload_dir.iterdir()}
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['total_rows'], 1)
+        self.assertEqual(payload['data']['rows'][0]['code'], 'B001')
+        self.assertEqual(config_payload['data']['date_columns'], ['pay_date'])
+        self.assertEqual(config_payload['data']['display_columns'], ['code', 'pay_date'])
+        self.assertEqual(after_files, before_files)
 
     def test_super_admin_can_open_access_control_and_admin(self):
         User.objects.create_superuser('root', 'root@example.com', 'pass12345', first_name='root')

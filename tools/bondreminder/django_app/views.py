@@ -1,13 +1,12 @@
 import json
 import mimetypes
 import re
-import uuid
+import tempfile
 from pathlib import Path
 
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render
-from django.utils.text import get_valid_filename
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -16,7 +15,7 @@ from dashboard.models import FeatureAccess
 from dashboard.permissions import has_feature_access, is_super_admin
 from dashboard.views import base_context
 from tools.bondreminder.app.bond_logic import BondReminder
-from tools.bondreminder.app.config import APP_DIR, UPLOAD_DIR
+from tools.bondreminder.app.config import APP_DIR
 from tools.bondreminder.app.customer_logic import (
     call_identity_ai,
     check_birthday_jobs,
@@ -96,13 +95,28 @@ def save_upload(uploaded_file, allowed_exts):
     ext = Path(uploaded_file.name).suffix.lower()
     if ext not in allowed_exts:
         raise ValueError(f'不支持的文件类型: {ext}')
-    safe_name = get_valid_filename(uploaded_file.name) or f'upload{ext}'
-    filename = f'{uuid.uuid4().hex}_{safe_name}'
-    path = UPLOAD_DIR / filename
-    with path.open('wb') as target:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as target:
         for chunk in uploaded_file.chunks():
             target.write(chunk)
-    return path
+        return Path(target.name)
+
+
+def remove_temp_upload(path):
+    if not path:
+        return
+    try:
+        Path(path).unlink(missing_ok=True)
+    except OSError as exc:
+        append_log(f'临时上传文件清理失败: {exc}')
+
+
+def reconcile_columns(config, columns):
+    defaults = config.get('default_column_mappings', {})
+    for key in ['date_columns', 'display_columns']:
+        selected = [col for col in config.get(key, []) if col in columns]
+        if not selected:
+            selected = [col for col in defaults.get(key, []) if col in columns]
+        config[key] = selected
 
 
 def preserve_secret_update(current, incoming, key):
@@ -195,23 +209,22 @@ def api_config(request):
 @require_api_access(FeatureAccess.ACTION_USE)
 @require_http_methods(['POST'])
 def api_upload_bond_data(request):
+    path = None
     try:
         header = int(request.POST.get('header', request.POST.get('header_row_index', 0)) or 0)
         path = save_upload(request.FILES.get('file'), ALLOWED_TABLE_EXTENSIONS)
         df = cache_bond_table(path, header)
         config = load_config()
         columns = [str(col) for col in df.columns]
-        defaults = config.get('default_column_mappings', {})
-        if not config.get('date_columns'):
-            config['date_columns'] = [col for col in defaults.get('date_columns', []) if col in columns]
-        if not config.get('display_columns'):
-            config['display_columns'] = [col for col in defaults.get('display_columns', []) if col in columns]
+        reconcile_columns(config, columns)
         save_config(config)
         scheduler_service.restart()
         append_log(f'债券数据已上传并缓存: {path.name}')
         return ok(bond_preview())
     except Exception as exc:
         return error(exc)
+    finally:
+        remove_temp_upload(path)
 
 
 @require_api_access(FeatureAccess.ACTION_VIEW)
@@ -391,6 +404,7 @@ def api_customer_data(request):
 @require_api_access(FeatureAccess.ACTION_USE)
 @require_http_methods(['POST'])
 def api_upload_customer_data(request):
+    path = None
     try:
         path = save_upload(request.FILES.get('file'), ALLOWED_TABLE_EXTENSIONS)
         data = import_customer_table(path)
@@ -398,6 +412,8 @@ def api_upload_customer_data(request):
         return ok(data)
     except Exception as exc:
         return error(exc)
+    finally:
+        remove_temp_upload(path)
 
 
 @require_api_access(FeatureAccess.ACTION_VIEW)
@@ -428,6 +444,7 @@ def api_customer_settings(request):
 @require_api_access(FeatureAccess.ACTION_USE)
 @require_http_methods(['POST'])
 def api_identity_ocr(request):
+    path = None
     try:
         path = save_upload(request.FILES.get('file'), ALLOWED_IDENTITY_EXTENSIONS)
         append_log(f'开始身份证识别：{path.name}')
@@ -438,6 +455,8 @@ def api_identity_ocr(request):
         return ok({'raw': result, 'filled': filled})
     except Exception as exc:
         return error(exc)
+    finally:
+        remove_temp_upload(path)
 
 
 @require_api_access(FeatureAccess.ACTION_USE)
