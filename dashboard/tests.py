@@ -35,6 +35,9 @@ class DashboardPageTests(TestCase):
             'end_time': f'{day}T{end}:00',
         }
 
+    def weekend_day(self):
+        return (datetime.fromisoformat(self.schedule_day()).date() + timedelta(days=5)).isoformat()
+
     def test_default_permissions_are_seeded(self):
         self.assertTrue(Group.objects.filter(name='超级管理员').exists())
         self.assertTrue(Group.objects.filter(name='团队负责人').exists())
@@ -395,6 +398,28 @@ class DashboardPageTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(InternSchedule.objects.get(intern=intern).schedule_type, InternSchedule.TYPE_LEAVE)
+
+    def test_member_can_create_weekend_schedule_and_week_view_ends_on_sunday(self):
+        intern = Intern.objects.create(name='周末安排对象')
+        self.user_in_group('weekend_schedule_member', '正式成员')
+        self.client.login(username='weekend_schedule_member', password='pass12345')
+        saturday = self.weekend_day()
+        payload = self.schedule_payload(intern, start='09:00', end='12:00', title='周末上午安排')
+        payload['start_time'] = f'{saturday}T09:00:00'
+        payload['end_time'] = f'{saturday}T12:00:00'
+
+        create_response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        list_response = self.client.get(f'/api/intern-schedules/?intern_id={intern.id}&week_start={self.schedule_day()}')
+        list_payload = json.loads(list_response.content)['data']
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_payload['week_end'], (datetime.fromisoformat(self.schedule_day()).date() + timedelta(days=6)).isoformat())
+        self.assertEqual(list_payload['schedules'][0]['title'], '周末上午安排')
 
     def test_member_can_create_but_not_edit_others_schedule_and_conflicts_are_rejected(self):
         intern = Intern.objects.create(name='成员安排对象')

@@ -149,8 +149,6 @@ class InternSchedule(models.Model):
                 errors['end_time'] = '结束时间必须大于开始时间。'
             if local_start.date() != local_end.date():
                 errors['end_time'] = '工作安排不能跨天。'
-            if local_start.weekday() > 4 or local_end.weekday() > 4:
-                errors['start_time'] = '工作安排时间必须在周一到周五。'
             work_start = time(9, 0)
             work_end = time(18, 0)
             if local_start.time() < work_start or local_end.time() > work_end:

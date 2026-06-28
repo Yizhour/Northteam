@@ -46,7 +46,7 @@
         </div>
         <div class="form-error" id="scheduleError" hidden></div>
         <div class="schedule-table-wrap">
-            <table class="schedule-table" id="scheduleTable"></table>
+            <div class="schedule-grid" id="scheduleTable"></div>
         </div>
     </section>
 </section>
@@ -118,8 +118,15 @@
         listCapabilities: {},
         selection: null,
     };
-    const weekdays = ['周一', '周二', '周三', '周四', '周五'];
-    const hours = Array.from({ length: 9 }, (_, index) => index + 9);
+    const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const dayStartMinutes = 9 * 60;
+    const dayEndMinutes = 18 * 60;
+    const slotMinutes = 30;
+    const totalSlots = (dayEndMinutes - dayStartMinutes) / slotMinutes;
+    const weekendCells = [
+        { label: '上午', startSlot: 0, endSlot: 6 },
+        { label: '下午', startSlot: 6, endSlot: totalSlots },
+    ];
     const $ = (id) => document.getElementById(id);
 
     function getCookie(name) {
@@ -164,9 +171,18 @@
 
     function datePart(value) { return value.slice(0, 10); }
     function timePart(value) { return value.slice(11, 16); }
+    function formatMinutes(minutes) {
+        const hour = Math.floor(minutes / 60);
+        const minute = minutes % 60;
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
     function toMinutes(value) {
         const date = new Date(value);
         return date.getHours() * 60 + date.getMinutes();
+    }
+    function minutesToSlot(minutes, roundUp = false) {
+        const raw = (minutes - dayStartMinutes) / slotMinutes;
+        return roundUp ? Math.ceil(raw) : Math.floor(raw);
     }
 
     function weekDays() {
@@ -174,18 +190,41 @@
         return weekdays.map((label, index) => {
             const day = new Date(base);
             day.setDate(base.getDate() + index);
-            return { label, date: formatDate(day) };
+            return { label, date: formatDate(day), isWeekend: index >= 5 };
         });
     }
 
-    function schedulesForCell(date, hour) {
-        const start = hour * 60;
-        const end = (hour + 1) * 60;
-        return state.schedules.filter((item) => (
-            datePart(item.start_time) === date &&
-            toMinutes(item.start_time) < end &&
-            toMinutes(item.end_time) > start
-        ));
+    function timeSlots() {
+        return Array.from({ length: totalSlots }, (_, index) => {
+            const start = dayStartMinutes + index * slotMinutes;
+            const end = start + slotMinutes;
+            return { index, label: `${formatMinutes(start)}-${formatMinutes(end)}` };
+        });
+    }
+
+    function cellsForDay(day) {
+        if (day.isWeekend) return weekendCells;
+        const slots = timeSlots();
+        return Array.from({ length: totalSlots }, (_, index) => ({
+            label: slots[index].label,
+            startSlot: index,
+            endSlot: index + 1,
+        }));
+    }
+
+    function scheduleBlocks(days) {
+        return state.schedules.map((item) => {
+            const dayIndex = days.findIndex((day) => day.date === datePart(item.start_time));
+            if (dayIndex < 0) return '';
+            const startSlot = Math.max(0, Math.min(totalSlots, minutesToSlot(toMinutes(item.start_time))));
+            const endSlot = Math.max(startSlot + 1, Math.min(totalSlots, minutesToSlot(toMinutes(item.end_time), true)));
+            return `
+                <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}" style="grid-column:${dayIndex + 2};grid-row:${startSlot + 2} / ${endSlot + 2};">
+                    <span>${timePart(item.start_time)}-${timePart(item.end_time)}</span>
+                    <strong>${item.title}</strong>
+                    <small>${item.created_by_name}</small>
+                </button>`;
+        }).join('');
     }
 
     function setError(message) {
@@ -213,26 +252,28 @@
             $('workBtn').hidden = !state.capabilities.can_create_work;
         }
         const days = weekDays();
+        const slots = timeSlots();
+        const gridStyle = `grid-template-columns:112px repeat(${days.length}, minmax(128px, 1fr));grid-template-rows:auto repeat(${totalSlots}, minmax(34px, auto));`;
+        const timeColumn = slots.map((slot) => `<div class="time-column schedule-time-slot" style="grid-column:1;grid-row:${slot.index + 2};">${slot.label}</div>`).join('');
+        const dayCells = days.map((day, dayIndex) => cellsForDay(day).map((cell) => `
+            <button class="schedule-cell ${isCellSelected(day.date, cell) ? 'selecting' : ''}" type="button" data-date="${day.date}" data-start-slot="${cell.startSlot}" data-end-slot="${cell.endSlot}" style="grid-column:${dayIndex + 2};grid-row:${cell.startSlot + 2} / ${cell.endSlot + 2};">
+                ${day.isWeekend ? `<span class="weekend-cell-label">${cell.label}</span>` : ''}
+            </button>`).join('')).join('');
+        $('scheduleTable').style.cssText = gridStyle;
         $('scheduleTable').innerHTML = `
-            <thead><tr><th class="time-column">时间</th>${days.map((day) => `<th><strong>${day.label}</strong><span>${day.date}</span></th>`).join('')}</tr></thead>
-            <tbody>${hours.map((hour) => `
-                <tr>
-                    <th class="time-column">${String(hour).padStart(2, '0')}:00-${String(hour + 1).padStart(2, '0')}:00</th>
-                    ${days.map((day) => `<td class="schedule-cell ${isCellSelected(day.date, hour) ? 'selecting' : ''}" data-date="${day.date}" data-hour="${hour}">${schedulesForCell(day.date, hour).map((item) => `
-                        <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}">
-                            <span>${timePart(item.start_time)}-${timePart(item.end_time)}</span>
-                            <strong>${item.title}</strong>
-                            <small>${item.created_by_name}</small>
-                        </button>`).join('')}</td>`).join('')}
-                </tr>`).join('')}</tbody>
+            <div class="schedule-head time-column">时间</div>
+            ${days.map((day) => `<div class="schedule-head day-column"><strong>${day.label}</strong><span>${day.date}</span></div>`).join('')}
+            ${timeColumn}
+            ${dayCells}
+            ${scheduleBlocks(days)}
         `;
     }
 
-    function isCellSelected(date, hour) {
+    function isCellSelected(date, cell) {
         if (!state.selection || state.selection.date !== date) return false;
-        const minHour = Math.min(state.selection.startHour, state.selection.endHour);
-        const maxHour = Math.max(state.selection.startHour, state.selection.endHour);
-        return hour >= minHour && hour <= maxHour;
+        const minSlot = Math.min(state.selection.anchorStart, state.selection.currentStart);
+        const maxSlot = Math.max(state.selection.anchorEnd, state.selection.currentEnd);
+        return cell.startSlot < maxSlot && cell.endSlot > minSlot;
     }
 
     async function loadInterns() {
@@ -285,14 +326,14 @@
         $('scheduleModal').hidden = false;
     }
 
-    function openModalForRange(date, startHour, endHour) {
+    function openModalForRange(date, startSlot, endSlot) {
         if (shareToken || !state.capabilities.can_create_work) return;
-        const from = Math.min(startHour, endHour);
-        const to = Math.max(startHour, endHour) + 1;
+        const from = Math.min(startSlot, endSlot);
+        const to = Math.max(startSlot, endSlot);
         openModal('work');
         $('scheduleDate').value = date;
-        $('scheduleStart').value = `${String(from).padStart(2, '0')}:00`;
-        $('scheduleEnd').value = `${String(to).padStart(2, '0')}:00`;
+        $('scheduleStart').value = formatMinutes(dayStartMinutes + from * slotMinutes);
+        $('scheduleEnd').value = formatMinutes(dayStartMinutes + to * slotMinutes);
     }
 
     function closeModal() {
@@ -370,14 +411,21 @@
         const cell = event.target.closest('.schedule-cell');
         if (!cell || !state.capabilities.can_create_work) return;
         event.preventDefault();
-        state.selection = { date: cell.dataset.date, startHour: Number(cell.dataset.hour), endHour: Number(cell.dataset.hour) };
+        state.selection = {
+            date: cell.dataset.date,
+            anchorStart: Number(cell.dataset.startSlot),
+            anchorEnd: Number(cell.dataset.endSlot),
+            currentStart: Number(cell.dataset.startSlot),
+            currentEnd: Number(cell.dataset.endSlot),
+        };
         renderSchedule();
     });
     $('scheduleTable').addEventListener('mouseover', (event) => {
         if (!state.selection) return;
         const cell = event.target.closest('.schedule-cell');
         if (!cell || cell.dataset.date !== state.selection.date) return;
-        state.selection.endHour = Number(cell.dataset.hour);
+        state.selection.currentStart = Number(cell.dataset.startSlot);
+        state.selection.currentEnd = Number(cell.dataset.endSlot);
         renderSchedule();
     });
     document.addEventListener('mouseup', () => {
@@ -385,7 +433,11 @@
         const selection = state.selection;
         state.selection = null;
         renderSchedule();
-        openModalForRange(selection.date, selection.startHour, selection.endHour);
+        openModalForRange(
+            selection.date,
+            Math.min(selection.anchorStart, selection.currentStart),
+            Math.max(selection.anchorEnd, selection.currentEnd),
+        );
     });
     if (!shareToken) $('prevWeekBtn').addEventListener('click', async () => {
         const date = parseDate(state.weekStart);

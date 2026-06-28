@@ -407,7 +407,7 @@ def intern_schedules_api(request):
             {
                 'intern': serialize_intern(intern, request),
                 'week_start': str(week_start),
-                'week_end': str(week_start + timedelta(days=4)),
+                'week_end': str(week_start + timedelta(days=6)),
                 'hours': list(range(9, 18)),
                 'schedules': [serialize_schedule(schedule, request.user) for schedule in schedules],
                 'capabilities': intern_schedule_capabilities(request.user, intern),
@@ -524,7 +524,7 @@ def intern_public_schedules_api(request, token):
         {
             'intern': serialize_intern(intern, request),
             'week_start': str(week_start),
-            'week_end': str(week_start + timedelta(days=4)),
+            'week_end': str(week_start + timedelta(days=6)),
             'hours': list(range(9, 18)),
             'schedules': [
                 serialize_schedule(schedule, public_intern=intern)

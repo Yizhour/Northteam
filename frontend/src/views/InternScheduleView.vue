@@ -62,43 +62,55 @@
       <div v-if="error" class="form-error">{{ error }}</div>
 
       <div class="schedule-table-wrap">
-        <table class="schedule-table">
-          <thead>
-            <tr>
-              <th class="time-column">时间</th>
-              <th v-for="day in weekDays" :key="day.date">
-                <strong>{{ day.label }}</strong>
-                <span>{{ day.date }}</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="hour in hours" :key="hour">
-              <th class="time-column">{{ hourLabel(hour) }}</th>
-              <td
-                v-for="day in weekDays"
-                :key="`${day.date}-${hour}`"
-                class="schedule-cell"
-                :class="{ selecting: isCellSelected(day.date, hour) }"
-                @mousedown="startSelection(day.date, hour, $event)"
-                @mouseenter="updateSelection(day.date, hour)"
-              >
-                <button
-                  v-for="item in schedulesForCell(day.date, hour)"
-                  :key="`${item.id}-${hour}`"
-                  class="schedule-block"
-                  :class="item.schedule_type"
-                  type="button"
-                  @click.stop="openDetail(item)"
-                >
-                  <span>{{ timeRange(item) }}</span>
-                  <strong>{{ item.title }}</strong>
-                  <small>{{ item.created_by_name }}</small>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="schedule-grid" :style="gridStyle">
+          <div class="schedule-head time-column">时间</div>
+          <div
+            v-for="day in weekDays"
+            :key="day.date"
+            class="schedule-head day-column"
+          >
+            <strong>{{ day.label }}</strong>
+            <span>{{ day.date }}</span>
+          </div>
+
+          <div
+            v-for="slot in timeSlots"
+            :key="slot.index"
+            class="time-column schedule-time-slot"
+            :style="timeSlotStyle(slot)"
+          >
+            {{ slot.label }}
+          </div>
+
+          <template v-for="(day, dayIndex) in weekDays" :key="day.date">
+            <button
+              v-for="cell in cellsForDay(day)"
+              :key="`${day.date}-${cell.startSlot}`"
+              class="schedule-cell"
+              :class="{ selecting: isCellSelected(day.date, cell) }"
+              type="button"
+              :style="cellStyle(dayIndex, cell)"
+              @mousedown="startSelection(day.date, cell, $event)"
+              @mouseenter="updateSelection(day.date, cell)"
+            >
+              <span v-if="day.isWeekend" class="weekend-cell-label">{{ cell.label }}</span>
+            </button>
+          </template>
+
+          <button
+            v-for="block in scheduleBlocks"
+            :key="block.item.id"
+            class="schedule-block"
+            :class="block.item.schedule_type"
+            type="button"
+            :style="block.style"
+            @click.stop="openDetail(block.item)"
+          >
+            <span>{{ timeRange(block.item) }}</span>
+            <strong>{{ block.item.title }}</strong>
+            <small>{{ block.item.created_by_name }}</small>
+          </button>
+        </div>
       </div>
     </section>
   </section>
@@ -218,17 +230,58 @@ const form = reactive({ schedule_type: 'work', title: '', date: '', start: '09:0
 const internModal = reactive({ open: false, item: null, error: '' });
 const internForm = reactive({ name: '', note: '' });
 const listCapabilities = reactive({ can_manage_interns: false });
-const selection = reactive({ active: false, date: '', startHour: 9, endHour: 9 });
+const selection = reactive({
+  active: false,
+  date: '',
+  anchorStart: 0,
+  anchorEnd: 0,
+  currentStart: 0,
+  currentEnd: 0,
+});
 
-const hours = computed(() => Array.from({ length: 9 }, (_, index) => index + 9));
+const dayStartMinutes = 9 * 60;
+const dayEndMinutes = 18 * 60;
+const slotMinutes = 30;
+const totalSlots = (dayEndMinutes - dayStartMinutes) / slotMinutes;
+const weekdayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const weekendCells = [
+  { label: '上午', startSlot: 0, endSlot: 6 },
+  { label: '下午', startSlot: 6, endSlot: totalSlots },
+];
+const gridStyle = computed(() => ({
+  gridTemplateColumns: `112px repeat(${weekDays.value.length}, minmax(128px, 1fr))`,
+  gridTemplateRows: `auto repeat(${totalSlots}, minmax(34px, auto))`,
+}));
+const timeSlots = computed(() => Array.from({ length: totalSlots }, (_, index) => {
+  const start = dayStartMinutes + index * slotMinutes;
+  const end = start + slotMinutes;
+  return { index, label: `${formatMinutes(start)}-${formatMinutes(end)}` };
+}));
 const weekDays = computed(() => {
   const base = parseLocalDate(currentWeekStart.value);
-  return ['周一', '周二', '周三', '周四', '周五'].map((label, index) => {
+  return weekdayLabels.map((label, index) => {
     const day = new Date(base);
     day.setDate(base.getDate() + index);
-    return { label, date: formatDate(day) };
+    return { label, date: formatDate(day), isWeekend: index >= 5 };
   });
 });
+const scheduleBlocks = computed(() => schedule.schedules
+  .map((item) => {
+    const dayIndex = weekDays.value.findIndex((day) => day.date === datePart(item.start_time));
+    if (dayIndex < 0) return null;
+    const startSlot = minutesToSlot(toMinutes(item.start_time));
+    const endSlot = minutesToSlot(toMinutes(item.end_time), true);
+    const clampedStart = Math.max(0, Math.min(totalSlots, startSlot));
+    const clampedEnd = Math.max(clampedStart + 1, Math.min(totalSlots, endSlot));
+    return {
+      item,
+      style: {
+        gridColumn: `${dayIndex + 2}`,
+        gridRow: `${clampedStart + 2} / ${clampedEnd + 2}`,
+      },
+    };
+  })
+  .filter(Boolean));
 const modalTitle = computed(() => {
   if (modal.item && modal.readonly) return '安排详情';
   if (modal.item) return '编辑安排';
@@ -254,13 +307,20 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
-function hourLabel(hour) {
-  return `${String(hour).padStart(2, '0')}:00-${String(hour + 1).padStart(2, '0')}:00`;
+function formatMinutes(minutes) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 function toMinutes(value) {
   const date = new Date(value);
   return date.getHours() * 60 + date.getMinutes();
+}
+
+function minutesToSlot(minutes, roundUp = false) {
+  const raw = (minutes - dayStartMinutes) / slotMinutes;
+  return roundUp ? Math.ceil(raw) : Math.floor(raw);
 }
 
 function datePart(value) {
@@ -275,46 +335,63 @@ function timeRange(item) {
   return `${timePart(item.start_time)}-${timePart(item.end_time)}`;
 }
 
-function schedulesForCell(date, hour) {
-  const cellStart = hour * 60;
-  const cellEnd = (hour + 1) * 60;
-  return schedule.schedules.filter((item) => {
-    if (datePart(item.start_time) !== date) return false;
-    return toMinutes(item.start_time) < cellEnd && toMinutes(item.end_time) > cellStart;
-  });
+function cellsForDay(day) {
+  if (day.isWeekend) return weekendCells;
+  return Array.from({ length: totalSlots }, (_, index) => ({
+    label: timeSlots.value[index]?.label || '',
+    startSlot: index,
+    endSlot: index + 1,
+  }));
 }
 
-function isCellSelected(date, hour) {
+function cellStyle(dayIndex, cell) {
+  return {
+    gridColumn: `${dayIndex + 2}`,
+    gridRow: `${cell.startSlot + 2} / ${cell.endSlot + 2}`,
+  };
+}
+
+function timeSlotStyle(slot) {
+  return {
+    gridColumn: '1',
+    gridRow: `${slot.index + 2}`,
+  };
+}
+
+function isCellSelected(date, cell) {
   if (!selection.active || selection.date !== date) return false;
-  const minHour = Math.min(selection.startHour, selection.endHour);
-  const maxHour = Math.max(selection.startHour, selection.endHour);
-  return hour >= minHour && hour <= maxHour;
+  const minSlot = Math.min(selection.anchorStart, selection.currentStart);
+  const maxSlot = Math.max(selection.anchorEnd, selection.currentEnd);
+  return cell.startSlot < maxSlot && cell.endSlot > minSlot;
 }
 
-function startSelection(date, hour, event) {
+function startSelection(date, cell, event) {
   if (isPublicLink.value || !schedule.capabilities.can_create_work || event.target.closest('.schedule-block')) return;
   selection.active = true;
   selection.date = date;
-  selection.startHour = hour;
-  selection.endHour = hour;
+  selection.anchorStart = cell.startSlot;
+  selection.anchorEnd = cell.endSlot;
+  selection.currentStart = cell.startSlot;
+  selection.currentEnd = cell.endSlot;
   window.addEventListener('mouseup', finishSelection, { once: true });
 }
 
-function updateSelection(date, hour) {
+function updateSelection(date, cell) {
   if (!selection.active || selection.date !== date) return;
-  selection.endHour = hour;
+  selection.currentStart = cell.startSlot;
+  selection.currentEnd = cell.endSlot;
 }
 
 function finishSelection() {
   if (!selection.active) return;
   const date = selection.date;
-  const startHour = Math.min(selection.startHour, selection.endHour);
-  const endHour = Math.max(selection.startHour, selection.endHour) + 1;
+  const startSlot = Math.min(selection.anchorStart, selection.currentStart);
+  const endSlot = Math.max(selection.anchorEnd, selection.currentEnd);
   selection.active = false;
   openCreate('work', {
     date,
-    start: `${String(startHour).padStart(2, '0')}:00`,
-    end: `${String(endHour).padStart(2, '0')}:00`,
+    start: formatMinutes(dayStartMinutes + startSlot * slotMinutes),
+    end: formatMinutes(dayStartMinutes + endSlot * slotMinutes),
   });
 }
 
