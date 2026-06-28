@@ -9,6 +9,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from tools.bondreminder.app.bond_logic import BondReminder
+from tools.bondreminder.app.config import BOND_CACHE_FILE
+from tools.bondreminder.app.storage import save_bond_table_from_upload
 
 from .models import Feature, FeatureAccess, Intern, InternSchedule
 
@@ -116,6 +118,7 @@ class DashboardPageTests(TestCase):
     def test_bondreminder_csv_upload_replaces_database_data_without_persistent_file(self):
         self.user_in_group('bond_csv_member', '正式成员')
         self.client.login(username='bond_csv_member', password='pass12345')
+        self.client.delete('/tools/bond-reminder/api/logs')
         self.client.post(
             '/tools/bond-reminder/api/config',
             data=json.dumps(
@@ -144,6 +147,7 @@ class DashboardPageTests(TestCase):
         )
         payload = json.loads(response.content)
         config_payload = json.loads(self.client.get('/tools/bond-reminder/api/config').content)
+        logs_payload = json.loads(self.client.get('/tools/bond-reminder/api/logs').content)
         after_files = {path.name for path in upload_dir.iterdir()}
 
         self.assertEqual(response.status_code, 200)
@@ -153,6 +157,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(payload['data']['path'], 'bonds.csv')
         self.assertEqual(config_payload['data']['date_columns'], ['pay_date'])
         self.assertEqual(config_payload['data']['display_columns'], ['code', 'pay_date'])
+        self.assertEqual(logs_payload['data'], [])
         self.assertEqual(after_files, before_files)
 
     def test_super_admin_can_open_access_control_and_admin(self):
@@ -280,11 +285,12 @@ class DashboardPageTests(TestCase):
             with open(table_path, 'w', encoding='utf-8-sig') as table:
                 table.write('证券代码,证券简称,2026年度付息日（T）,对接人姓名,对接人手机号\n')
                 table.write(f'2320025.IB,23北京银行01,{today},,\n')
+            save_bond_table_from_upload(table_path, source_name='daily-check.csv')
 
             reminder = BondReminder(
                 {
                     'sender_email': 'sender@example.com',
-                    'excel_path': table_path,
+                    'excel_path': str(BOND_CACHE_FILE),
                     'header_row_index': 0,
                     'date_columns': ['2026年度付息日（T）'],
                     'col_contact_name': '对接人姓名',

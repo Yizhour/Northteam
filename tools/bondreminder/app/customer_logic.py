@@ -153,10 +153,6 @@ def call_identity_ai(path, settings):
             last_error = _format_identity_error(text)
             if "base64" not in text or content_value == content_values[-1]:
                 raise RuntimeError(last_error) from exc
-            if content_type == "input_file":
-                append_log("身份证 PDF file_data 未被接受。")
-            else:
-                append_log("身份证图片 data URL 未被接受，正在改用纯 base64 重试。")
     if not raw:
         raise RuntimeError(last_error or "身份证识别接口未返回内容。")
     data = json.loads(raw)
@@ -198,7 +194,6 @@ def fill_identity_to_customer_table(result):
     if birthday:
         row[birthday_col] = birthday
     save_customer_data({"columns": columns, "rows": rows})
-    append_log(f"身份证识别结果已写入客户表：{name or '-'}")
     return {"name": name, "id_no": id_no, "birthday": birthday, "columns": columns, "rows": rows}
 
 

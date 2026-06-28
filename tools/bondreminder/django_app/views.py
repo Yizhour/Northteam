@@ -21,11 +21,10 @@ from tools.bondreminder.app.customer_logic import (
     check_birthday_jobs,
     fill_identity_to_customer_table,
 )
-from tools.bondreminder.app.logging_utils import append_log, clear_logs, read_logs
+from tools.bondreminder.app.logging_utils import clear_logs, read_logs
 from tools.bondreminder.app.scheduler import scheduler_service
 from tools.bondreminder.app.storage import (
     bond_preview,
-    cache_bond_table,
     import_customer_table,
     has_bond_table,
     load_config,
@@ -34,6 +33,7 @@ from tools.bondreminder.app.storage import (
     load_customer_settings,
     public_config,
     public_customer_settings,
+    save_bond_table_from_upload,
     save_config,
     save_contacts,
     save_customer_data,
@@ -55,7 +55,6 @@ def ok(data=None, **kwargs):
 
 
 def error(message, status=400):
-    append_log(f'请求失败: {message}')
     return JsonResponse({'ok': False, 'error': str(message)}, status=status)
 
 
@@ -106,8 +105,8 @@ def remove_temp_upload(path):
         return
     try:
         Path(path).unlink(missing_ok=True)
-    except OSError as exc:
-        append_log(f'临时上传文件清理失败: {exc}')
+    except OSError:
+        pass
 
 
 def reconcile_columns(config, columns):
@@ -183,7 +182,7 @@ def static_asset(request, path):
 
 @require_api_access(FeatureAccess.ACTION_VIEW)
 def api_health(request):
-    return ok({'status': 'running', 'bond_cache_exists': has_bond_table()})
+    return ok({'status': 'running', 'bond_data_exists': has_bond_table()})
 
 
 @require_api_access(FeatureAccess.ACTION_VIEW)
@@ -202,7 +201,6 @@ def api_config(request):
     preserve_secret_update(current, incoming, 'auth_code')
     saved = save_config(current)
     scheduler_service.restart()
-    append_log('债券配置已保存。')
     return ok(public_config(saved))
 
 
@@ -215,13 +213,12 @@ def api_upload_bond_data(request):
         uploaded_file = request.FILES.get('file')
         source_name = uploaded_file.name if uploaded_file else ''
         path = save_upload(uploaded_file, ALLOWED_TABLE_EXTENSIONS)
-        df = cache_bond_table(path, header, source_name=source_name)
+        df = save_bond_table_from_upload(path, header, source_name=source_name)
         config = load_config()
         columns = [str(col) for col in df.columns]
         reconcile_columns(config, columns)
         save_config(config)
         scheduler_service.restart()
-        append_log(f'债券数据已上传并写入数据库: {source_name or path.name}')
         return ok(bond_preview())
     except Exception as exc:
         return error(exc)
@@ -261,8 +258,6 @@ def api_run_manual(request):
         logs.extend(reminder.run_weekly_check())
     if config.get('daily_enabled', False):
         logs.extend(BondReminder(config).run_daily_check())
-    if not logs:
-        append_log('当前未启用任何任务，无法执行调试。')
     return ok({'logs': logs})
 
 
@@ -287,7 +282,6 @@ def api_contacts(request):
         if email and not email_pattern.match(email):
             return error(f'第 {idx} 行邮箱格式不正确')
     save_contacts(contacts)
-    append_log('通讯录已保存。')
     return ok(load_contacts())
 
 
@@ -306,7 +300,6 @@ def api_tasks(request):
         tasks.append(normalize_task(task))
         save_config(config)
         scheduler_service.restart()
-        append_log(f"自定义任务已新增: {task.get('name', '未命名任务')}")
         return ok(tasks)
     except Exception as exc:
         return error(exc)
@@ -323,7 +316,6 @@ def api_task_detail(request, index):
         removed = tasks.pop(index)
         save_config(config)
         scheduler_service.restart()
-        append_log(f"自定义任务已删除: {removed.get('name', '未命名任务')}")
         return ok(tasks)
     try:
         task = json_body(request, {})
@@ -335,7 +327,6 @@ def api_task_detail(request, index):
         tasks[index] = new_task
         save_config(config)
         scheduler_service.restart()
-        append_log(f"自定义任务已更新: {new_task.get('name', '未命名任务')}")
         return ok(tasks)
     except Exception as exc:
         return error(exc)
@@ -356,7 +347,6 @@ def api_task_toggle(request, index):
         task['enabled'] = not task.get('enabled', True)
     save_config(config)
     scheduler_service.restart()
-    append_log(f"自定义任务状态已切换: {task.get('name', '未命名任务')}")
     return ok(tasks)
 
 
@@ -399,7 +389,6 @@ def api_customer_data(request):
     if not isinstance(columns, list) or not isinstance(rows, list):
         return error('客户表数据格式不正确')
     save_customer_data({'columns': columns, 'rows': rows})
-    append_log(f'客户表已保存：{len(rows)} 行，{len(columns)} 列。')
     return ok(load_customer_data())
 
 
@@ -410,7 +399,6 @@ def api_upload_customer_data(request):
     try:
         path = save_upload(request.FILES.get('file'), ALLOWED_TABLE_EXTENSIONS)
         data = import_customer_table(path)
-        append_log(f"客户表已导入：{path.name}，{len(data.get('rows', []))} 行，{len(data.get('columns', []))} 列。")
         return ok(data)
     except Exception as exc:
         return error(exc)
@@ -433,13 +421,6 @@ def api_customer_settings(request):
     current['api_key'] = api_key
     preserve_secret_update(current, incoming, 'api_key')
     saved = save_customer_settings(current)
-    append_log(
-        '客户管理设置已保存：'
-        f"生日提醒={'启用' if saved.get('birthday_enabled') else '停用'}，"
-        f"发送时间={saved.get('send_time', '')}，"
-        f"手机号列={saved.get('phone_column', '') or '-'}，"
-        f"生日列={saved.get('birthday_column', '') or '-'}。"
-    )
     return ok(public_customer_settings(saved))
 
 
@@ -449,11 +430,9 @@ def api_identity_ocr(request):
     path = None
     try:
         path = save_upload(request.FILES.get('file'), ALLOWED_IDENTITY_EXTENSIONS)
-        append_log(f'开始身份证识别：{path.name}')
         settings = load_customer_settings()
         result = call_identity_ai(path, settings)
         filled = fill_identity_to_customer_table(result)
-        append_log(f"身份证识别完成：姓名={filled.get('name') or '-'}，生日={filled.get('birthday') or '-'}。")
         return ok({'raw': result, 'filled': filled})
     except Exception as exc:
         return error(exc)
@@ -466,12 +445,6 @@ def api_identity_ocr(request):
 def api_birthday_check(request):
     try:
         result = check_birthday_jobs(force=True)
-        append_log(
-            '手动生日提醒检查完成：'
-            f"客户提醒 {result.get('customer_count', 0)} 条，"
-            f"订单提醒 {result.get('merchant_count', 0)} 条，"
-            f"是否发送={'是' if result.get('sent') else '否'}。"
-        )
         return ok(result)
     except Exception as exc:
         return error(exc)

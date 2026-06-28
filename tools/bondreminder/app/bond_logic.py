@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from datetime import datetime, timedelta
 from email.header import Header
@@ -40,9 +39,9 @@ class BondReminder:
     def _read_excel(self, log_errors=True):
         excel_path = self.config.get("excel_path")
         header_idx = self.config.get("header_row_index", 0)
-        if not excel_path or (not has_bond_table() and not os.path.exists(excel_path)):
+        if not excel_path or not has_bond_table():
             if log_errors:
-                self.log("错误: 数据缓存文件不存在。请先上传或重新保存数据文件。")
+                self.log("错误: 数据库中尚无债券数据。请先上传数据。")
             return None
         try:
             return read_table(excel_path, header=header_idx)

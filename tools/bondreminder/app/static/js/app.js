@@ -10,6 +10,7 @@ const state = {
   autoSaveTimer: null,
   customerSettingsTimer: null,
   customerDataTimer: null,
+  lastLogsText: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -545,13 +546,18 @@ async function recognizeIdentityFile(file) {
 function renderLogs(logs) {
   const lines = logs || [];
   const text = lines.length ? [`共 ${lines.length} 条日志`, ...lines].join("\n") : "暂无日志";
-  if ($("logBox")) {
-    $("logBox").textContent = text;
-    $("logBox").scrollTop = $("logBox").scrollHeight;
-  }
-  if ($("customerLogBox")) {
-    $("customerLogBox").textContent = text;
-    $("customerLogBox").scrollTop = $("customerLogBox").scrollHeight;
+  if (text === state.lastLogsText) return;
+  state.lastLogsText = text;
+  updateLogBox($("logBox"), text);
+  updateLogBox($("customerLogBox"), text);
+}
+
+function updateLogBox(node, text) {
+  if (!node || node.textContent === text) return;
+  const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 32;
+  node.textContent = text;
+  if (nearBottom) {
+    node.scrollTop = node.scrollHeight;
   }
 }
 

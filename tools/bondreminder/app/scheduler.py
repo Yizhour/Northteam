@@ -5,7 +5,6 @@ from datetime import datetime
 
 from .bond_logic import BondReminder
 from .customer_logic import check_birthday_jobs
-from .logging_utils import append_log
 from .storage import load_config, save_config
 
 
@@ -22,12 +21,10 @@ class SchedulerService:
         self.schedule_jobs()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        append_log("后台调度服务已启动。")
 
     def stop(self):
         self._active = False
         schedule.clear()
-        append_log("后台调度服务已停止。")
 
     def restart(self):
         self.schedule_jobs()
@@ -49,22 +46,15 @@ class SchedulerService:
                 job_creator = getattr(schedule.every(), day.lower(), None)
                 if job_creator:
                     job_creator.at(weekly_time).do(self.run_weekly)
-                    append_log(f"计划任务 [周报]: 每 {day} {weekly_time}")
-            else:
-                append_log("计划任务 [周报]: 未启用")
 
             if config.get("daily_enabled", False):
                 schedule.every().day.at(daily_time).do(self.run_daily)
-                append_log(f"计划任务 [日报]: 每天 {daily_time}")
-            else:
-                append_log("计划任务 [日报]: 未启用")
 
             schedule.every().minute.do(check_birthday_jobs)
 
-            for idx, task in enumerate(config.get("custom_tasks", [])):
+            for task in config.get("custom_tasks", []):
                 if not task.get("enabled", True) or task.get("executed", False):
                     continue
-                task_name = task.get("name", f"自定义任务{idx + 1}")
                 time_config = task.get("time_config", {})
                 time_type = time_config.get("type", "once")
                 task_time = time_config.get("time", "00:00")
@@ -72,7 +62,6 @@ class SchedulerService:
                     target_date = time_config.get("date")
                     if target_date:
                         schedule.every().day.at(task_time).do(self.check_and_run_once, task, target_date)
-                        append_log(f"计划任务 [{task_name}]: 一次性于 {target_date} {task_time}")
                 elif time_type == "weekly":
                     weekday_map = {
                         "周一": "monday",
@@ -88,10 +77,8 @@ class SchedulerService:
                         job_creator = getattr(schedule.every(), en_weekday, None) if en_weekday else None
                         if job_creator:
                             job_creator.at(task_time).do(self.run_custom_task, task)
-                            append_log(f"计划任务 [{task_name}]: 每周{weekday} {task_time}")
                 elif time_type == "daily":
                     schedule.every().day.at(task_time).do(self.run_custom_task, task)
-                    append_log(f"计划任务 [{task_name}]: 每天 {task_time}")
 
     def run_weekly(self):
         reminder = BondReminder(load_config())
@@ -120,7 +107,6 @@ class SchedulerService:
             save_config(config)
             return schedule.CancelJob
         if current_date > target_date:
-            append_log(f"任务 [{task.get('name')}] 日期已过，停止调度。")
             return schedule.CancelJob
         return None
 

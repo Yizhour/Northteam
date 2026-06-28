@@ -1,7 +1,4 @@
 import copy
-import json
-import os
-import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -13,10 +10,7 @@ from .config import (
     BOND_CACHE_FILE,
     CONFIG_FILE,
     CONTACTS_FILE,
-    CUSTOMER_DATA_FILE,
     CUSTOMER_SETTINGS_FILE,
-    DATA_DIR,
-    FILES_DIR,
     ensure_directories,
 )
 
@@ -138,17 +132,6 @@ def _models():
         return None, None
 
 
-def _database_ready():
-    store_model, _ = _models()
-    if store_model is None:
-        return False
-    try:
-        store_model.objects.exists()
-        return True
-    except DatabaseError:
-        return False
-
-
 def _load_store(key, default):
     store_model, _ = _models()
     if store_model is None:
@@ -187,7 +170,7 @@ def _cell_to_json(value):
 def _save_table(table_key, df, source_path=""):
     _, row_model = _models()
     if row_model is None:
-        return
+        raise RuntimeError("数据库未就绪，无法保存付息兑付数据。")
     columns = [str(col).strip().replace("\n", "") for col in df.columns]
     records = []
     for row_index, (_, row) in enumerate(df.iterrows()):
@@ -241,41 +224,28 @@ def _load_table_dataframe(table_key, nrows=None):
 def has_bond_table():
     _, row_model = _models()
     if row_model is None:
-        return BOND_CACHE_FILE.exists()
+        return False
     try:
         return row_model.objects.filter(table_key=TABLE_BOND).exists()
     except DatabaseError:
-        return BOND_CACHE_FILE.exists()
+        return False
 
 
 def read_json(path, default):
     ensure_directories()
     path = Path(path)
     store_key, store_default = _json_store_mapping(path)
-    if store_key and _database_ready():
+    if store_key:
         return _load_store(store_key, store_default)
-    if not path.exists():
-        write_json(path, default)
-        return copy.deepcopy(default)
-    try:
-        with path.open("r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return copy.deepcopy(default)
+    return copy.deepcopy(default)
 
 
 def write_json(path, data):
     ensure_directories()
     path = Path(path)
     store_key, _ = _json_store_mapping(path)
-    if store_key and _database_ready():
+    if store_key:
         _save_store(store_key, data)
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with tmp_path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-    tmp_path.replace(path)
 
 
 def load_config():
@@ -329,36 +299,27 @@ def save_contacts(data):
 
 
 def load_customer_data():
-    if _database_ready():
-        df = _load_table_dataframe(TABLE_CUSTOMER)
-        meta = _load_store(STORE_CUSTOMER_META, {"columns": [], "total_rows": 0})
-        if df is not None:
-            columns = [str(col) for col in meta.get("columns", list(df.columns))]
-            rows = df.fillna("").astype(str).to_dict(orient="records")
-            return {"columns": columns, "rows": rows}
-    data = read_json(CUSTOMER_DATA_FILE, DEFAULT_CUSTOMER_DATA)
-    if not isinstance(data, dict):
+    df = _load_table_dataframe(TABLE_CUSTOMER)
+    meta = _load_store(STORE_CUSTOMER_META, {"columns": [], "total_rows": 0})
+    if df is None:
         return copy.deepcopy(DEFAULT_CUSTOMER_DATA)
-    data.setdefault("columns", [])
-    data.setdefault("rows", [])
-    return data
+    columns = [str(col) for col in meta.get("columns", list(df.columns))]
+    rows = df.fillna("").astype(str).to_dict(orient="records")
+    return {"columns": columns, "rows": rows}
 
 
 def save_customer_data(data):
     data = data if isinstance(data, dict) else copy.deepcopy(DEFAULT_CUSTOMER_DATA)
     data.setdefault("columns", [])
     data.setdefault("rows", [])
-    if _database_ready():
-        columns = [str(col).strip() for col in data.get("columns", [])]
-        df = pd.DataFrame(data.get("rows", []))
-        for column in columns:
-            if column not in df.columns:
-                df[column] = ""
-        if columns:
-            df = df[columns]
-        _save_table(TABLE_CUSTOMER, df)
-        return
-    write_json(CUSTOMER_DATA_FILE, data)
+    columns = [str(col).strip() for col in data.get("columns", [])]
+    df = pd.DataFrame(data.get("rows", []))
+    for column in columns:
+        if column not in df.columns:
+            df[column] = ""
+    if columns:
+        df = df[columns]
+    _save_table(TABLE_CUSTOMER, df)
 
 
 def load_customer_settings():
@@ -387,10 +348,11 @@ def public_customer_settings(data=None):
 
 def read_table(path, header=0, nrows=None):
     path = Path(path)
-    if _same_path(path, BOND_CACHE_FILE) and _database_ready():
+    if _same_path(path, BOND_CACHE_FILE):
         df = _load_table_dataframe(TABLE_BOND, nrows=nrows)
         if df is not None:
             return df
+        raise FileNotFoundError("债券数据尚未写入数据库，请先上传数据。")
     ext = path.suffix.lower()
     if ext == ".csv":
         last_error = None
@@ -408,14 +370,10 @@ def read_table(path, header=0, nrows=None):
     return df
 
 
-def cache_bond_table(source_path, header=0, source_name=""):
+def save_bond_table_from_upload(source_path, header=0, source_name=""):
     df = read_table(source_path, header=header)
     source_label = source_name or Path(source_path).name
-    if _database_ready():
-        _save_table(TABLE_BOND, df, source_path=source_label)
-    else:
-        BOND_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(BOND_CACHE_FILE, index=False, encoding="utf-8-sig")
+    _save_table(TABLE_BOND, df, source_path=source_label)
     config = load_config()
     config["excel_path"] = str(BOND_CACHE_FILE)
     config["ui_original_path"] = source_label
@@ -425,29 +383,16 @@ def cache_bond_table(source_path, header=0, source_name=""):
 
 
 def bond_preview(limit=50):
-    config = load_config()
-    path = Path(config.get("excel_path") or BOND_CACHE_FILE)
-    if _database_ready():
-        df = _load_table_dataframe(TABLE_BOND)
-        if df is None:
-            return {"columns": [], "rows": [], "total_rows": 0, "path": ""}
-        preview = df.head(limit).fillna("").astype(str)
-        meta = _load_store(STORE_BOND_META, {"source_path": str(BOND_CACHE_FILE)})
-        return {
-            "columns": [str(col) for col in df.columns],
-            "rows": preview.to_dict(orient="records"),
-            "total_rows": int(len(df)),
-            "path": meta.get("source_path") or str(BOND_CACHE_FILE),
-        }
-    if not path.exists():
+    df = _load_table_dataframe(TABLE_BOND)
+    if df is None:
         return {"columns": [], "rows": [], "total_rows": 0, "path": ""}
-    df = read_table(path, header=0)
     preview = df.head(limit).fillna("").astype(str)
+    meta = _load_store(STORE_BOND_META, {"source_path": ""})
     return {
         "columns": [str(col) for col in df.columns],
         "rows": preview.to_dict(orient="records"),
         "total_rows": int(len(df)),
-        "path": str(path),
+        "path": meta.get("source_path") or "",
     }
 
 
@@ -459,25 +404,3 @@ def import_customer_table(path):
     }
     save_customer_data(data)
     return data
-
-
-def copy_initial_assets(project_root):
-    ensure_directories()
-    root = Path(project_root)
-    for name, dst in [
-        ("config.json", CONFIG_FILE),
-        ("contacts.json", CONTACTS_FILE),
-        ("customer_data.json", CUSTOMER_DATA_FILE),
-        ("customer_settings.json", CUSTOMER_SETTINGS_FILE),
-        ("bond_data_cache.csv", BOND_CACHE_FILE),
-    ]:
-        src = root / name
-        if src.exists() and not dst.exists():
-            shutil.copy2(src, dst)
-    src_files = root / "files"
-    if src_files.exists():
-        for child in src_files.iterdir():
-            if child.is_file() and not child.name.startswith("~$"):
-                dst = FILES_DIR / child.name
-                if not dst.exists():
-                    shutil.copy2(child, dst)
