@@ -57,9 +57,7 @@ DEFAULT_ACCESS = {
         'mistakes': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
         'interns': {FeatureAccess.ACTION_VIEW, FeatureAccess.ACTION_USE},
     },
-    FeatureAccess.ROLE_ANONYMOUS: {
-        'overview': {FeatureAccess.ACTION_VIEW},
-    },
+    FeatureAccess.ROLE_ANONYMOUS: {},
 }
 
 
@@ -124,6 +122,8 @@ def has_feature_access(user, feature_key, action=FeatureAccess.ACTION_VIEW):
 
 
 def features_for_user(user, action=FeatureAccess.ACTION_VIEW):
+    if not user.is_authenticated:
+        return Feature.objects.none()
     role = role_for_user(user)
     if user.is_authenticated and user.is_superuser:
         return Feature.objects.filter(is_active=True).order_by('sort_order', 'id')

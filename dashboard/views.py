@@ -21,6 +21,7 @@ def base_context(request, active_nav):
     }
 
 
+@feature_required('overview')
 def home(request):
     """Render the first dashboard page for the internal OA-style workspace."""
     context = base_context(request, '概况')

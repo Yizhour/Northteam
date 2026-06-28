@@ -149,7 +149,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard:home'
-LOGOUT_REDIRECT_URL = 'dashboard:home'
+LOGOUT_REDIRECT_URL = 'login'
 
 SIMPLEUI_HOME_INFO = False
 SIMPLEUI_ANALYSIS = False

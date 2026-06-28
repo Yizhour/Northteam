@@ -38,9 +38,7 @@ DEFAULT_ACCESS = {
         'info': {'view', 'use'},
         'mistakes': {'view', 'use'},
     },
-    'anonymous': {
-        'overview': {'view'},
-    },
+    'anonymous': {},
 }
 
 

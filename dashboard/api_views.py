@@ -73,6 +73,12 @@ def api_error(message, status=400):
     return JsonResponse({'ok': False, 'error': message}, status=status)
 
 
+def api_login_required(request):
+    if request.user.is_authenticated:
+        return None
+    return api_error('请先登录。', status=401)
+
+
 def parse_json(request):
     try:
         return json.loads(request.body.decode('utf-8') or '{}')
@@ -301,6 +307,9 @@ def logout_api(request):
 
 
 def overview_api(request):
+    denied = api_login_required(request)
+    if denied:
+        return denied
     data = {
         **OVERVIEW_DATA,
         'bond_reminder': bond_reminder_overview(),
@@ -309,6 +318,9 @@ def overview_api(request):
 
 
 def tools_api(request):
+    denied = api_login_required(request)
+    if denied:
+        return denied
     if not has_feature_access(request.user, 'tools', FeatureAccess.ACTION_VIEW):
         return api_error('无权限访问。', status=403)
     tools = []
@@ -551,6 +563,9 @@ def intern_public_schedule_detail_api(request, token, schedule_id):
 
 
 def page_api(request, feature_key):
+    denied = api_login_required(request)
+    if denied:
+        return denied
     if not has_feature_access(request.user, feature_key, FeatureAccess.ACTION_VIEW):
         return api_error('无权限访问。', status=403)
     names = {

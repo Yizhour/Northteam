@@ -47,7 +47,7 @@ class DashboardPageTests(TestCase):
         self.assertFalse(Group.objects.filter(name='实习生').exists())
         self.assertFalse(Group.objects.filter(name='只读用户（未登录）').exists())
         self.assertTrue(Feature.objects.filter(key='bondreminder').exists())
-        self.assertTrue(
+        self.assertFalse(
             FeatureAccess.objects.filter(
                 feature__key='overview',
                 role=FeatureAccess.ROLE_ANONYMOUS,
@@ -56,13 +56,11 @@ class DashboardPageTests(TestCase):
             ).exists()
         )
 
-    def test_anonymous_user_can_only_view_overview(self):
+    def test_anonymous_user_is_redirected_to_login_for_dashboard(self):
         response = self.client.get(reverse('dashboard:home'))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'NorthTeam 工作台')
-        self.assertContains(response, '登录')
-        self.assertNotContains(response, '高效工具箱')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response['Location'])
 
         tools_response = self.client.get(reverse('dashboard:tools'))
         self.assertEqual(tools_response.status_code, 302)
@@ -194,14 +192,14 @@ class DashboardPageTests(TestCase):
         self.assertContains(response, 'NorthTeam 工作台')
         self.assertContains(response, '登录')
 
-    def test_vue_session_api_returns_anonymous_navigation(self):
+    def test_vue_session_api_returns_no_anonymous_navigation(self):
         response = self.client.get('/api/session/')
         payload = json.loads(response.content)
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload['ok'])
         self.assertFalse(payload['data']['authenticated'])
-        self.assertEqual([item['key'] for item in payload['data']['features']], ['overview'])
+        self.assertEqual(payload['data']['features'], [])
 
     def test_admin_user_creation_requires_name(self):
         from .admin import RequiredNameUserCreationForm
@@ -234,7 +232,7 @@ class DashboardPageTests(TestCase):
 
     def test_vue_tools_api_respects_permissions(self):
         denied = self.client.get('/api/tools/')
-        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.status_code, 401)
 
         self.user_in_group('vue_member_tools', '正式成员')
         self.client.login(username='vue_member_tools', password='pass12345')
@@ -245,13 +243,10 @@ class DashboardPageTests(TestCase):
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['tools'][0]['key'], 'bondreminder')
 
-    def test_overview_api_exposes_public_bond_reminder_summary(self):
+    def test_overview_api_requires_login_and_exposes_bond_reminder_summary(self):
         anonymous_response = self.client.get('/api/overview/')
-        anonymous_payload = json.loads(anonymous_response.content)
 
-        self.assertEqual(anonymous_response.status_code, 200)
-        self.assertTrue(anonymous_payload['data']['bond_reminder']['available'])
-        self.assertIn('weekly_events', anonymous_payload['data']['bond_reminder'])
+        self.assertEqual(anonymous_response.status_code, 401)
 
         self.user_in_group('vue_member_overview', '正式成员')
         self.client.login(username='vue_member_overview', password='pass12345')
@@ -265,18 +260,19 @@ class DashboardPageTests(TestCase):
         self.assertIn('today_events', bond_reminder)
         self.assertIn('display_columns', bond_reminder)
 
-    def test_overview_remains_public_even_if_permission_is_disabled(self):
+    def test_overview_requires_login_even_if_anonymous_permission_is_enabled(self):
         FeatureAccess.objects.filter(
             feature__key='overview',
             role=FeatureAccess.ROLE_ANONYMOUS,
             action=FeatureAccess.ACTION_VIEW,
-        ).update(allowed=False)
+        ).update(allowed=True)
 
         page_response = self.client.get(reverse('dashboard:home'))
         api_response = self.client.get('/api/overview/')
 
-        self.assertEqual(page_response.status_code, 200)
-        self.assertEqual(api_response.status_code, 200)
+        self.assertEqual(page_response.status_code, 302)
+        self.assertIn('/accounts/login/', page_response['Location'])
+        self.assertEqual(api_response.status_code, 401)
 
     def test_daily_check_reports_events_missing_contacts(self):
         today = datetime.now().date()

@@ -68,6 +68,10 @@ def json_body(request, default):
 
 
 def require_bond_access(request, action):
+    if not request.user.is_authenticated:
+        if request.path.startswith('/tools/bond-reminder/api/'):
+            return JsonResponse({'ok': False, 'error': '请先登录。'}, status=401)
+        raise PermissionDenied
     if has_feature_access(request.user, 'bondreminder', action):
         return None
     if request.path.startswith('/tools/bond-reminder/api/'):
