@@ -251,8 +251,11 @@
             if (dayIndex < 0) return '';
             const startSlot = Math.max(0, Math.min(totalSlots, minutesToSlot(toMinutes(item.start_time))));
             const endSlot = Math.max(startSlot + 1, Math.min(totalSlots, minutesToSlot(toMinutes(item.end_time), true)));
+            const typeStyle = item.schedule_type === 'leave'
+                ? 'color:#475569;background:#e5e7eb;border-color:#cbd5e1;'
+                : 'color:#173b34;background:#e8f5f0;border-color:#b9ddcf;';
             return `
-                <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}" style="grid-column:${dayIndex + 2};grid-row:${startSlot + 2} / ${endSlot + 2};">
+                <button class="schedule-block ${item.schedule_type}" type="button" data-schedule-id="${item.id}" style="grid-column:${dayIndex + 2};grid-row:${startSlot + 2} / ${endSlot + 2};display:grid;gap:4px;width:auto;min-height:0;margin:3px 6px;padding:8px;border:1px solid;border-radius:6px;cursor:pointer;font:inherit;text-align:left;z-index:2;overflow:hidden;${typeStyle}">
                     <span>${timePart(item.start_time)}-${timePart(item.end_time)}</span>
                     <strong>${item.title}</strong>
                     <small>${item.created_by_name}</small>
@@ -286,16 +289,19 @@
         }
         const days = weekDays();
         const slots = timeSlots();
-        const gridStyle = `grid-template-columns:112px repeat(${days.length}, minmax(128px, 1fr));grid-template-rows:auto repeat(${totalSlots}, minmax(34px, auto));`;
-        const timeColumn = slots.map((slot) => `<div class="time-column schedule-time-slot" style="grid-column:1;grid-row:${slot.index + 2};">${slot.label}</div>`).join('');
+        const gridStyle = `position:relative;display:grid;min-width:1040px;background:#fff;grid-template-columns:112px repeat(${days.length}, minmax(128px, 1fr));grid-template-rows:auto repeat(${totalSlots}, minmax(34px, auto));`;
+        const headStyle = 'padding:10px;color:#334155;background:#eef3f8;font-size:13px;font-weight:700;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;';
+        const timeStyle = 'padding:8px 10px;color:#334155;background:#eef3f8;font-size:12px;line-height:1.25;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;';
+        const cellStyle = 'min-height:34px;padding:0;background:#fbfcfe;border:0;border-right:1px solid #d8e1ec;border-bottom:1px solid #d8e1ec;cursor:crosshair;font:inherit;text-align:center;';
+        const timeColumn = slots.map((slot) => `<div class="time-column schedule-time-slot" style="grid-column:1;grid-row:${slot.index + 2};${timeStyle}">${slot.label}</div>`).join('');
         const dayCells = days.map((day, dayIndex) => cellsForDay(day).map((cell) => `
-            <button class="schedule-cell ${isCellSelected(day.date, cell) ? 'selecting' : ''}" type="button" data-date="${day.date}" data-start-slot="${cell.startSlot}" data-end-slot="${cell.endSlot}" style="grid-column:${dayIndex + 2};grid-row:${cell.startSlot + 2} / ${cell.endSlot + 2};">
+            <button class="schedule-cell ${isCellSelected(day.date, cell) ? 'selecting' : ''}" type="button" data-date="${day.date}" data-start-slot="${cell.startSlot}" data-end-slot="${cell.endSlot}" style="grid-column:${dayIndex + 2};grid-row:${cell.startSlot + 2} / ${cell.endSlot + 2};${cellStyle}">
                 ${day.isWeekend ? `<span class="weekend-cell-label">${cell.label}</span>` : ''}
             </button>`).join('')).join('');
         $('scheduleTable').style.cssText = gridStyle;
         $('scheduleTable').innerHTML = `
-            <div class="schedule-head time-column">时间</div>
-            ${days.map((day) => `<div class="schedule-head day-column"><strong>${day.label}</strong><span>${day.date}</span></div>`).join('')}
+            <div class="schedule-head time-column" style="grid-column:1;grid-row:1;${headStyle}">时间</div>
+            ${days.map((day, dayIndex) => `<div class="schedule-head day-column" style="grid-column:${dayIndex + 2};grid-row:1;text-align:center;${headStyle}"><strong>${day.label}</strong><span>${day.date}</span></div>`).join('')}
             ${timeColumn}
             ${dayCells}
             ${scheduleBlocks(days)}

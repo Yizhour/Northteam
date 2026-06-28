@@ -379,6 +379,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'id="deleteInternBtn"')
         self.assertContains(response, 'id="deleteInternInModalBtn"')
+        self.assertContains(response, 'position:relative;display:grid')
 
     def test_leave_schedule_can_be_edited_by_any_member(self):
         intern = Intern.objects.create(name='请假对象')
