@@ -126,8 +126,8 @@
     const slotMinutes = 30;
     const totalSlots = (dayEndMinutes - dayStartMinutes) / slotMinutes;
     const weekendCells = [
-        { label: '上午', startSlot: 0, endSlot: 6 },
-        { label: '下午', startSlot: 6, endSlot: totalSlots },
+        { label: '上午（尽量不要周末布置工作）', startSlot: 0, endSlot: 6 },
+        { label: '下午（尽量不要周末布置工作）', startSlot: 6, endSlot: totalSlots },
     ];
     const $ = (id) => document.getElementById(id);
 
