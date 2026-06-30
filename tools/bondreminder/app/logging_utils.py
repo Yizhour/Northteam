@@ -1,9 +1,4 @@
-from collections import deque
 from datetime import datetime
-from threading import Lock
-
-_lock = Lock()
-_logs = deque(maxlen=2000)
 _MAX_LOG_ROWS = 2000
 
 
@@ -19,24 +14,10 @@ def _log_model():
         return None
 
 
-def _append_memory(line):
-    with _lock:
-        _logs.append(line)
-
-
-def _read_memory(limit):
-    with _lock:
-        lines = list(_logs)
-    if limit <= 0:
-        return lines
-    return lines[-limit:]
-
-
 def append_log(message):
     line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}"
     model = _log_model()
     if model is None:
-        _append_memory(line)
         return line
     try:
         model.objects.create(line=line)
@@ -46,14 +27,14 @@ def append_log(message):
             if stale_ids:
                 model.objects.filter(id__in=stale_ids).delete()
     except Exception:
-        _append_memory(line)
+        pass
     return line
 
 
 def read_logs(limit=2000):
     model = _log_model()
     if model is None:
-        return _read_memory(limit)
+        return []
     try:
         query = model.objects.order_by("id")
         if limit > 0:
@@ -63,7 +44,7 @@ def read_logs(limit=2000):
             query = model.objects.filter(id__in=ids).order_by("id")
         return list(query.values_list("line", flat=True))
     except Exception:
-        return _read_memory(limit)
+        return []
 
 
 def clear_logs():
@@ -73,5 +54,3 @@ def clear_logs():
             model.objects.all().delete()
         except Exception:
             pass
-    with _lock:
-        _logs.clear()
