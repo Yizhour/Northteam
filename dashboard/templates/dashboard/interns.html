@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block title %}实习生工作安排 | NorthTeam2 工作台{% endblock %}
 
@@ -106,5 +105,5 @@
 {% endif %}
 
 <script>window.NT_INTERN_SHARE_TOKEN = "{{ intern_share_token|default:''|escapejs }}";</script>
-<script src="{% static 'dashboard/js/interns.js' %}"></script>
+<script src="{% url 'dashboard:interns_script' %}"></script>
 {% endblock %}

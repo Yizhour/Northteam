@@ -1,3 +1,5 @@
+from django.contrib.staticfiles import finders
+from django.http import Http404, HttpResponse
 from django.shortcuts import render
 
 from .api_views import bond_reminder_overview
@@ -107,3 +109,11 @@ def intern_share(request, token):
     context['intern_share_token'] = token
     context['hide_chrome'] = True
     return render(request, 'dashboard/interns.html', context)
+
+
+def interns_script(request):
+    script_path = finders.find('dashboard/js/interns.js')
+    if not script_path:
+        raise Http404('Intern schedule script not found.')
+    with open(script_path, 'rb') as script_file:
+        return HttpResponse(script_file.read(), content_type='application/javascript; charset=utf-8')
