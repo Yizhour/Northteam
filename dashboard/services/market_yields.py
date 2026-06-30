@@ -305,6 +305,7 @@ def market_yield_overview():
     updated_at = max((point.fetched_at for point in latest_points), default=None)
     return {
         'available': bool(latest_date),
+        'today': timezone.localdate(),
         'latest_date': latest_date,
         'previous_date': previous_date,
         'third_date': third_date,

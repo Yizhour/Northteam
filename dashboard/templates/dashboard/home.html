@@ -127,12 +127,12 @@
         {% endif %}
         <div class="market-yield-meta">
             {% if market_yields.available %}
-                <span>最新：{{ market_yields.latest_date|date:"Y-m-d" }}</span>
-                {% if market_yields.previous_date %}
-                    <span>上一交易日：{{ market_yields.previous_date|date:"Y-m-d" }}</span>
-                {% endif %}
+                <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
+                <span>最新数据：{{ market_yields.latest_date|date:"Y-m-d" }}</span>
+                <span>（每个交易日 19:00-19:10 更新）</span>
             {% else %}
-                <span>暂无数据，点击更新后展示。</span>
+                <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
+                <span>暂无数据，点击更新后展示。（每个交易日 19:00-19:10 更新）</span>
             {% endif %}
         </div>
         <div class="market-yield-table-wrap">
