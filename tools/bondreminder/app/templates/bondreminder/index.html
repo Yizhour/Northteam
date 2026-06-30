@@ -216,7 +216,6 @@
         <label>授权码生成日 <input id="authStartDate" type="date"></label>
         <label>有效期天数 <input id="authValidityDays" type="number" min="30" max="720"></label>
         <label>短信 JSON 格式邮箱中转收件人 <input id="dailyEmailReceiver" type="email"></label>
-        <label>任意两次发送最小间隔秒 <input id="sendInterval" type="number" min="30"></label>
         <label>身份证识别 API Key <input id="customerApiKey" type="password" placeholder="留空保持原 API Key"></label>
         <label>身份证识别模型 <input id="customerModel" type="text"></label>
         <label class="wide">身份证识别接口 <input id="customerApiUrl" type="url"></label>
@@ -232,7 +231,8 @@
               <option value="starttls587">STARTTLS 587</option>
             </select>
           </label>
-          <label>单个接口超时秒数 <input id="smtpTimeoutSeconds" type="number" min="3" max="60"></label>
+          <label>发送间隔保护秒数 <input id="sendInterval" type="number" min="30"></label>
+          <label>邮件发送超时秒数 <input id="smtpTimeoutSeconds" type="number" min="3" max="60"></label>
         </div>
       </details>
       <div class="toolbar compact">
