@@ -425,6 +425,10 @@ h2 {
     margin-bottom: 18px;
 }
 
+.market-yield-panel .page-messages {
+    margin: -6px 0 12px;
+}
+
 .page-message {
     padding: 10px 12px;
     border-radius: 6px;
@@ -524,6 +528,15 @@ h2 {
 
 .market-yield-table tbody tr.previous-day {
     background: #fafcff;
+}
+
+.market-yield-date {
+    width: 74px;
+    color: var(--color-navy);
+    background: #eef3f8;
+    font-weight: 700;
+    text-align: left !important;
+    vertical-align: middle;
 }
 
 .market-yield-table tbody tr:last-child th,

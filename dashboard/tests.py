@@ -499,9 +499,13 @@ class DashboardPageTests(TestCase):
         self.assertTrue(overview['available'])
         self.assertEqual(overview['rows'][0]['cells'][0]['display'], '2.23%（↑ 2BP）')
         self.assertEqual(overview['rows'][0]['cells'][0]['direction'], 'up')
-        self.assertEqual(overview['rows'][1]['date'], previous_day)
-        self.assertEqual(overview['rows'][1]['cells'][0]['display'], '2.21%（↑ 1BP）')
-        self.assertEqual(overview['rows'][1]['cells'][0]['direction'], 'up')
+        self.assertTrue(overview['rows'][0]['show_date'])
+        self.assertFalse(overview['rows'][1]['show_date'])
+        self.assertEqual(overview['rows'][0]['date_rowspan'], 3)
+        self.assertEqual(overview['rows'][3]['date'], previous_day)
+        self.assertTrue(overview['rows'][3]['show_date'])
+        self.assertEqual(overview['rows'][3]['cells'][0]['display'], '2.21%（↑ 1BP）')
+        self.assertEqual(overview['rows'][3]['cells'][0]['direction'], 'up')
 
     def test_market_yield_prune_keeps_latest_30_trading_dates(self):
         latest_day = timezone.localdate()

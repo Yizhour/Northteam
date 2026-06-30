@@ -269,10 +269,11 @@ def market_yield_overview():
 
     rows = []
     latest_points = []
-    for target in TARGET_CURVES:
-        for row_index, (current_date, compare_date) in enumerate(((latest_date, previous_date), (previous_date, third_date))):
-            if current_date is None:
-                continue
+    visible_dates = [(latest_date, previous_date), (previous_date, third_date)]
+    for row_index, (current_date, compare_date) in enumerate(visible_dates):
+        if current_date is None:
+            continue
+        for target_index, target in enumerate(TARGET_CURVES):
             cells = []
             for maturity_years, maturity_label in TARGET_MATURITIES:
                 current = points.get((current_date, target.code, maturity_years))
@@ -295,6 +296,8 @@ def market_yield_overview():
                     'date': current_date,
                     'compare_date': compare_date,
                     'is_previous': row_index == 1,
+                    'show_date': target_index == 0,
+                    'date_rowspan': len(TARGET_CURVES),
                     'cells': cells,
                 }
             )

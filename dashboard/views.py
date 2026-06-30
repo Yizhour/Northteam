@@ -64,10 +64,7 @@ def home(request):
 @feature_required('overview')
 def market_yields_refresh(request):
     result = fetch_recent_market_yields()
-    if result.get('ok'):
-        dates = '、'.join(result.get('dates') or [])
-        messages.success(request, f'收益率数据已更新：{dates}')
-    else:
+    if not result.get('ok'):
         messages.error(request, result.get('message') or '收益率数据更新失败。')
     return redirect('dashboard:home')
 
