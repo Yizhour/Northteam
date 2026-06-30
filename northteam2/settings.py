@@ -38,7 +38,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
     'simpleui',
-    'dashboard',
+    'dashboard.apps.DashboardConfig',
     'tools.bondreminder.django_app.apps.BondReminderConfig',
     'django.contrib.admin',
     'django.contrib.auth',

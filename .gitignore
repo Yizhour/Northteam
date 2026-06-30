@@ -13,6 +13,7 @@ db.sqlite3
 staticfiles/
 media/
 *.log
+runtime/
 
 # Internal tool runtime data
 tools/bondreminder/data/

@@ -25,6 +25,7 @@ from dashboard.permissions import (
     role_for_user,
 )
 from dashboard.services.intern_schedules import split_ranges_around_lunch
+from dashboard.services.market_yields import market_yield_overview
 
 
 FEATURE_PATHS = {
@@ -328,6 +329,7 @@ def overview_api(request):
     data = {
         **OVERVIEW_DATA,
         'bond_reminder': bond_reminder_overview(),
+        'market_yields': market_yield_overview(),
     }
     return api_ok(data)
 

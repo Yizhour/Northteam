@@ -193,3 +193,32 @@ class InternSchedule(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class MarketYieldPoint(models.Model):
+    """Yield curve point fetched from ChinaBond for the dashboard overview."""
+
+    SOURCE_CHINABOND = 'chinabond'
+
+    source = models.CharField(max_length=40, default=SOURCE_CHINABOND)
+    curve_code = models.CharField(max_length=40)
+    curve_name = models.CharField(max_length=120)
+    curve_full_name = models.CharField(max_length=200, blank=True)
+    trading_date = models.DateField(db_index=True)
+    maturity_label = models.CharField(max_length=8)
+    maturity_years = models.DecimalField(max_digits=5, decimal_places=2)
+    yield_rate = models.DecimalField(max_digits=8, decimal_places=4)
+    fetched_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-trading_date', 'curve_code', 'maturity_years']
+        unique_together = [('source', 'curve_code', 'trading_date', 'maturity_years')]
+        indexes = [
+            models.Index(fields=['source', '-trading_date']),
+            models.Index(fields=['curve_code', '-trading_date']),
+        ]
+
+    def __str__(self):
+        return f'{self.trading_date} {self.curve_name} {self.maturity_label} {self.yield_rate}%'

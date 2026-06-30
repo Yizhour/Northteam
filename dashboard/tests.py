@@ -1,6 +1,7 @@
 import json
 import time
 from datetime import datetime, timedelta
+from decimal import Decimal
 from email.mime.text import MIMEText
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,7 +16,8 @@ from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.config import BOND_CACHE_FILE
 from tools.bondreminder.app.storage import save_bond_table_from_upload
 
-from .models import Feature, FeatureAccess, Intern, InternSchedule
+from .models import Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint
+from .services.market_yields import market_yield_overview, prune_old_market_yields
 
 
 class DashboardPageTests(TestCase):
@@ -462,6 +464,55 @@ class DashboardPageTests(TestCase):
         self.assertEqual(page_response.status_code, 302)
         self.assertIn('/accounts/login/', page_response['Location'])
         self.assertEqual(api_response.status_code, 401)
+
+    def test_market_yield_overview_formats_latest_change(self):
+        previous_day = timezone.localdate() - timedelta(days=1)
+        latest_day = timezone.localdate()
+        MarketYieldPoint.objects.create(
+            curve_code='treasury',
+            curve_name='Treasury',
+            trading_date=previous_day,
+            maturity_label='1Y',
+            maturity_years=Decimal('1.00'),
+            yield_rate=Decimal('2.2100'),
+        )
+        MarketYieldPoint.objects.create(
+            curve_code='treasury',
+            curve_name='Treasury',
+            trading_date=latest_day,
+            maturity_label='1Y',
+            maturity_years=Decimal('1.00'),
+            yield_rate=Decimal('2.2300'),
+        )
+
+        overview = market_yield_overview()
+
+        self.assertTrue(overview['available'])
+        self.assertEqual(overview['rows'][0]['cells'][0]['display'], '2.23%（↑ 2BP）')
+        self.assertEqual(overview['rows'][0]['cells'][0]['direction'], 'up')
+
+    def test_market_yield_prune_keeps_latest_30_trading_dates(self):
+        latest_day = timezone.localdate()
+        for offset in range(31):
+            MarketYieldPoint.objects.create(
+                curve_code='treasury',
+                curve_name='Treasury',
+                trading_date=latest_day - timedelta(days=offset),
+                maturity_label='1Y',
+                maturity_years=Decimal('1.00'),
+                yield_rate=Decimal('2.0000'),
+            )
+
+        deleted_count = prune_old_market_yields()
+
+        self.assertEqual(deleted_count, 1)
+        self.assertEqual(
+            MarketYieldPoint.objects.values('trading_date').distinct().count(),
+            30,
+        )
+        self.assertFalse(
+            MarketYieldPoint.objects.filter(trading_date=latest_day - timedelta(days=30)).exists()
+        )
 
     def test_daily_check_reports_events_missing_contacts(self):
         today = datetime.now().date()

@@ -4,7 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import Feature, FeatureAccess, Intern, InternSchedule
+from .models import Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint
 
 
 def display_staff_name(user):
@@ -99,3 +99,11 @@ class InternScheduleAdmin(admin.ModelAdmin):
     @admin.display(description='安排人', ordering='created_by__first_name')
     def created_by_display(self, obj):
         return display_staff_name(obj.created_by)
+
+
+@admin.register(MarketYieldPoint)
+class MarketYieldPointAdmin(admin.ModelAdmin):
+    list_display = ('trading_date', 'curve_name', 'maturity_label', 'yield_rate', 'fetched_at')
+    list_filter = ('source', 'curve_code', 'trading_date')
+    search_fields = ('curve_name', 'curve_full_name', 'maturity_label')
+    date_hierarchy = 'trading_date'

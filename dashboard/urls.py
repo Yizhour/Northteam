@@ -16,4 +16,5 @@ urlpatterns = [
     path('interns/', views.interns, name='interns'),
     path('interns/script.js', views.interns_script, name='interns_script'),
     path('interns/share/<str:token>/', views.intern_share, name='intern_share'),
+    path('market-yields/refresh/', views.market_yields_refresh, name='market_yields_refresh'),
 ]

@@ -3,11 +3,22 @@
 {% block title %}概况 | NorthTeam2 工作台{% endblock %}
 
 {% block content %}
+<style>
+.page-messages{display:grid;gap:8px;margin-bottom:18px}.page-message{padding:10px 12px;border-radius:6px;font-size:13px;font-weight:700}.page-message.success{color:#14532d;background:#dcfce7;border:1px solid #86efac}.page-message.error{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.market-yield-panel{margin-bottom:22px;overflow:hidden;background:#0f172a;border:1px solid #1e293b;border-radius:8px;box-shadow:0 18px 38px rgba(15,23,42,.18)}.market-yield-header,.market-yield-meta{display:flex;align-items:center}.market-yield-header{justify-content:space-between;gap:16px;padding:18px 20px 14px;color:#fff;border-bottom:1px solid rgba(148,163,184,.22)}.market-yield-header .eyebrow{margin-bottom:6px;color:#93c5fd}.market-yield-header h2{color:#fff}.market-refresh-button{min-height:36px;padding:8px 13px;color:#0f172a;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:700}.market-refresh-button:hover{background:#dbeafe;border-color:#93c5fd}.market-yield-meta{flex-wrap:wrap;gap:8px;padding:10px 20px;color:#cbd5e1;background:#111c31;font-size:12px}.market-yield-meta span{padding-right:12px;border-right:1px solid rgba(148,163,184,.28)}.market-yield-meta span:last-child{border-right:0}.market-yield-table-wrap{overflow-x:auto}.market-yield-table{width:100%;min-width:760px;border-collapse:collapse;color:#e2e8f0;background:#0f172a;font-size:13px}.market-yield-table th,.market-yield-table td{padding:13px 14px;border-bottom:1px solid rgba(148,163,184,.16);text-align:right;white-space:nowrap}.market-yield-table thead th{color:#94a3b8;background:#172033;font-size:12px;letter-spacing:0}.market-yield-table th:first-child{text-align:left}.market-yield-table tbody th{color:#f8fafc;background:rgba(15,23,42,.92);font-weight:700}.market-yield-table tbody tr:hover{background:rgba(30,41,59,.62)}.yield-cell{font-family:"Consolas","SFMono-Regular","Microsoft YaHei",monospace;font-weight:700}.yield-cell.up{color:#f87171}.yield-cell.down{color:#4ade80}.yield-cell.flat,.yield-cell.neutral{color:#cbd5e1}
+</style>
 <section class="page-heading">
     <p class="eyebrow">NorthTeam2</p>
     <h1>团队内部管理概况</h1>
     <p class="heading-text">面向团队日常协作、项目台账、资料归档和人员登记的内部工作台。</p>
 </section>
+
+{% if messages %}
+    <div class="page-messages">
+        {% for message in messages %}
+            <div class="page-message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endif %}
 
 <section class="summary-grid" aria-label="关键指标">
     {% for card in summary_cards %}
@@ -17,6 +28,54 @@
             <span>{{ card.hint }}</span>
         </article>
     {% endfor %}
+</section>
+
+<section class="market-yield-panel" aria-label="市场收益率">
+    <div class="market-yield-header">
+        <div>
+            <p class="eyebrow">Market Rates</p>
+            <h2>中债收益率曲线</h2>
+        </div>
+        <form method="post" action="{% url 'dashboard:market_yields_refresh' %}">
+            {% csrf_token %}
+            <button class="market-refresh-button" type="submit">更新最新数据</button>
+        </form>
+    </div>
+    <div class="market-yield-meta">
+        {% if market_yields.available %}
+            <span>最新交易日：{{ market_yields.latest_date|date:"Y-m-d" }}</span>
+            {% if market_yields.previous_date %}
+                <span>对比交易日：{{ market_yields.previous_date|date:"Y-m-d" }}</span>
+            {% endif %}
+            {% if market_yields.updated_at %}
+                <span>更新时间：{{ market_yields.updated_at|date:"Y-m-d H:i" }}</span>
+            {% endif %}
+        {% else %}
+            <span>暂无收益率数据，点击更新最新数据后展示。</span>
+        {% endif %}
+    </div>
+    <div class="market-yield-table-wrap">
+        <table class="market-yield-table">
+            <thead>
+                <tr>
+                    <th>曲线</th>
+                    {% for maturity in market_yields.maturities %}
+                        <th>{{ maturity }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in market_yields.rows %}
+                    <tr>
+                        <th scope="row">{{ row.curve }}</th>
+                        {% for cell in row.cells %}
+                            <td class="yield-cell {{ cell.direction }}">{{ cell.display }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 
 {% if bond_reminder.available %}
