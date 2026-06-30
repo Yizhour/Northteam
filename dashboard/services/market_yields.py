@@ -142,7 +142,7 @@ def query_yield_curve(session, curve_id, date_str):
     return rows
 
 
-def fetch_recent_market_yields(min_trading_days=2, lookback_days=14, sleep_seconds=0.25):
+def fetch_recent_market_yields(min_trading_days=3, lookback_days=14, sleep_seconds=0.25):
     with file_lock('market-yields-fetch', FETCH_LOCK_TTL_SECONDS) as acquired:
         if not acquired:
             return {'ok': False, 'message': '收益率更新正在执行，请稍后再试。', 'saved': 0, 'dates': []}
@@ -253,10 +253,11 @@ def market_yield_overview():
         MarketYieldPoint.objects.filter(source=MarketYieldPoint.SOURCE_CHINABOND)
         .order_by('-trading_date')
         .values_list('trading_date', flat=True)
-        .distinct()[:2]
+        .distinct()[:3]
     )
     latest_date = dates[0] if dates else None
     previous_date = dates[1] if len(dates) > 1 else None
+    third_date = dates[2] if len(dates) > 2 else None
 
     points = {}
     if latest_date:
@@ -269,29 +270,41 @@ def market_yield_overview():
     rows = []
     latest_points = []
     for target in TARGET_CURVES:
-        cells = []
-        for maturity_years, maturity_label in TARGET_MATURITIES:
-            current = points.get((latest_date, target.code, maturity_years)) if latest_date else None
-            previous = points.get((previous_date, target.code, maturity_years)) if previous_date else None
-            if current:
-                latest_points.append(current)
-                formatted = format_change(current.yield_rate, previous.yield_rate if previous else None)
-                cells.append(
-                    {
-                        'maturity': maturity_label,
-                        'display': formatted['display'],
-                        'direction': formatted['class'],
-                    }
-                )
-            else:
-                cells.append({'maturity': maturity_label, 'display': '--', 'direction': 'neutral'})
-        rows.append({'curve': target.name, 'cells': cells})
+        for row_index, (current_date, compare_date) in enumerate(((latest_date, previous_date), (previous_date, third_date))):
+            if current_date is None:
+                continue
+            cells = []
+            for maturity_years, maturity_label in TARGET_MATURITIES:
+                current = points.get((current_date, target.code, maturity_years))
+                previous = points.get((compare_date, target.code, maturity_years)) if compare_date else None
+                if current:
+                    latest_points.append(current)
+                    formatted = format_change(current.yield_rate, previous.yield_rate if previous else None)
+                    cells.append(
+                        {
+                            'maturity': maturity_label,
+                            'display': formatted['display'],
+                            'direction': formatted['class'],
+                        }
+                    )
+                else:
+                    cells.append({'maturity': maturity_label, 'display': '--', 'direction': 'neutral'})
+            rows.append(
+                {
+                    'curve': target.name,
+                    'date': current_date,
+                    'compare_date': compare_date,
+                    'is_previous': row_index == 1,
+                    'cells': cells,
+                }
+            )
 
     updated_at = max((point.fetched_at for point in latest_points), default=None)
     return {
         'available': bool(latest_date),
         'latest_date': latest_date,
         'previous_date': previous_date,
+        'third_date': third_date,
         'updated_at': timezone.localtime(updated_at) if updated_at else None,
         'maturities': [label for _, label in TARGET_MATURITIES],
         'rows': rows,

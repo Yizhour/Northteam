@@ -445,43 +445,23 @@ h2 {
 }
 
 .market-yield-panel {
-    margin-bottom: 22px;
-    overflow: hidden;
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+    padding: 20px;
 }
 
-.market-yield-header,
-.market-yield-meta {
-    display: flex;
+.market-yield-heading {
     align-items: center;
 }
 
-.market-yield-header {
-    justify-content: space-between;
-    gap: 16px;
-    padding: 18px 20px 14px;
-    color: #ffffff;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-}
-
-.market-yield-header .eyebrow {
-    margin-bottom: 6px;
-    color: #93c5fd;
-}
-
-.market-yield-header h2 {
-    color: #ffffff;
+.market-yield-heading form {
+    margin: 0;
 }
 
 .market-refresh-button {
-    min-height: 36px;
-    padding: 8px 13px;
-    color: #0f172a;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
+    min-height: 34px;
+    padding: 7px 11px;
+    color: var(--color-navy);
+    background: #ffffff;
+    border: 1px solid var(--color-line);
     border-radius: 6px;
     cursor: pointer;
     font: inherit;
@@ -490,68 +470,65 @@ h2 {
 }
 
 .market-refresh-button:hover {
-    background: #dbeafe;
-    border-color: #93c5fd;
+    background: var(--color-blue-soft);
+    border-color: #8db9df;
 }
 
 .market-yield-meta {
+    display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 10px 20px;
-    color: #cbd5e1;
-    background: #111c31;
+    margin: -6px 0 12px;
+    color: var(--color-muted);
     font-size: 12px;
-}
-
-.market-yield-meta span {
-    padding-right: 12px;
-    border-right: 1px solid rgba(148, 163, 184, 0.28);
-}
-
-.market-yield-meta span:last-child {
-    border-right: 0;
 }
 
 .market-yield-table-wrap {
     overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
 }
 
 .market-yield-table {
     width: 100%;
-    min-width: 760px;
+    min-width: 680px;
     border-collapse: collapse;
-    color: #e2e8f0;
-    background: #0f172a;
-    font-size: 13px;
+    background: #ffffff;
+    font-size: 12px;
 }
 
 .market-yield-table th,
 .market-yield-table td {
-    padding: 13px 14px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--color-line);
     text-align: right;
     white-space: nowrap;
 }
 
 .market-yield-table thead th {
-    color: #94a3b8;
-    background: #172033;
+    color: #334155;
+    background: #eef3f8;
     font-size: 12px;
     letter-spacing: 0;
 }
 
-.market-yield-table th:first-child {
+.market-yield-table th:first-child,
+.market-yield-table th:nth-child(2) {
     text-align: left;
 }
 
 .market-yield-table tbody th {
-    color: #f8fafc;
-    background: rgba(15, 23, 42, 0.92);
+    color: var(--color-navy);
     font-weight: 700;
 }
 
-.market-yield-table tbody tr:hover {
-    background: rgba(30, 41, 59, 0.62);
+.market-yield-table tbody tr.previous-day {
+    background: #fafcff;
+}
+
+.market-yield-table tbody tr:last-child th,
+.market-yield-table tbody tr:last-child td {
+    border-bottom: 0;
 }
 
 .yield-cell {
@@ -560,16 +537,16 @@ h2 {
 }
 
 .yield-cell.up {
-    color: #f87171;
+    color: #dc2626;
 }
 
 .yield-cell.down {
-    color: #4ade80;
+    color: #16a34a;
 }
 
 .yield-cell.flat,
 .yield-cell.neutral {
-    color: #cbd5e1;
+    color: var(--color-muted);
 }
 
 .bond-reminder-panel {

@@ -466,8 +466,17 @@ class DashboardPageTests(TestCase):
         self.assertEqual(api_response.status_code, 401)
 
     def test_market_yield_overview_formats_latest_change(self):
+        third_day = timezone.localdate() - timedelta(days=2)
         previous_day = timezone.localdate() - timedelta(days=1)
         latest_day = timezone.localdate()
+        MarketYieldPoint.objects.create(
+            curve_code='treasury',
+            curve_name='Treasury',
+            trading_date=third_day,
+            maturity_label='1Y',
+            maturity_years=Decimal('1.00'),
+            yield_rate=Decimal('2.2000'),
+        )
         MarketYieldPoint.objects.create(
             curve_code='treasury',
             curve_name='Treasury',
@@ -490,6 +499,9 @@ class DashboardPageTests(TestCase):
         self.assertTrue(overview['available'])
         self.assertEqual(overview['rows'][0]['cells'][0]['display'], '2.23%（↑ 2BP）')
         self.assertEqual(overview['rows'][0]['cells'][0]['direction'], 'up')
+        self.assertEqual(overview['rows'][1]['date'], previous_day)
+        self.assertEqual(overview['rows'][1]['cells'][0]['display'], '2.21%（↑ 1BP）')
+        self.assertEqual(overview['rows'][1]['cells'][0]['direction'], 'up')
 
     def test_market_yield_prune_keeps_latest_30_trading_dates(self):
         latest_day = timezone.localdate()
