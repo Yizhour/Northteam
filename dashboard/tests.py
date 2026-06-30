@@ -638,7 +638,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(list_payload['week_end'], (datetime.fromisoformat(self.schedule_day()).date() + timedelta(days=6)).isoformat())
         self.assertEqual(list_payload['schedules'][0]['title'], '周末上午安排')
 
-    def test_member_cannot_create_schedule_during_lunch_break(self):
+    def test_member_creating_lunch_only_work_is_silently_ignored(self):
         intern = Intern.objects.create(name='午休安排对象')
         self.user_in_group('lunch_schedule_member', '正式成员')
         self.client.login(username='lunch_schedule_member', password='pass12345')
@@ -650,9 +650,75 @@ class DashboardPageTests(TestCase):
         )
         payload = json.loads(response.content)
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('午休时间', payload['error'])
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['ok'])
+        self.assertTrue(payload['data']['skipped'])
         self.assertFalse(InternSchedule.objects.filter(intern=intern).exists())
+
+    def test_member_can_create_work_that_spans_lunch_break(self):
+        intern = Intern.objects.create(name='跨午休工作对象')
+        self.user_in_group('lunch_work_member', '正式成员')
+        self.client.login(username='lunch_work_member', password='pass12345')
+        payload = self.schedule_payload(intern, start='09:00', end='14:00', title='跨午休工作')
+
+        response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        response_payload = json.loads(response.content)
+        schedules = list(InternSchedule.objects.filter(intern=intern).order_by('start_time'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response_payload['ok'])
+        self.assertEqual(len(schedules), 2)
+        self.assertEqual([(timezone.localtime(item.start_time).strftime('%H:%M'), timezone.localtime(item.end_time).strftime('%H:%M')) for item in schedules], [('09:00', '12:00'), ('13:30', '14:00')])
+
+    def test_member_can_create_leave_that_spans_lunch_break(self):
+        intern = Intern.objects.create(name='跨午休请假对象')
+        self.user_in_group('lunch_leave_member', '正式成员')
+        self.client.login(username='lunch_leave_member', password='pass12345')
+        payload = self.schedule_payload(intern, start='11:00', end='14:00', title='请假')
+        payload['schedule_type'] = InternSchedule.TYPE_LEAVE
+
+        response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        response_payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response_payload['ok'])
+        schedules = list(InternSchedule.objects.filter(intern=intern).order_by('start_time'))
+        self.assertEqual(len(schedules), 2)
+        self.assertTrue(all(schedule.schedule_type == InternSchedule.TYPE_LEAVE for schedule in schedules))
+        self.assertEqual([(timezone.localtime(item.start_time).strftime('%H:%M'), timezone.localtime(item.end_time).strftime('%H:%M')) for item in schedules], [('11:00', '12:00'), ('13:30', '14:00')])
+
+    def test_lunch_only_leave_does_not_conflict_with_leave_spanning_lunch(self):
+        intern = Intern.objects.create(name='午休请假冲突对象')
+        member = self.user_in_group('lunch_leave_conflict_member', '正式成员')
+        self.client.login(username='lunch_leave_conflict_member', password='pass12345')
+        day = self.schedule_day()
+        InternSchedule.objects.create(
+            intern=intern,
+            created_by=member,
+            schedule_type=InternSchedule.TYPE_LEAVE,
+            title='午休请假',
+            start_time=timezone.make_aware(datetime.fromisoformat(f'{day}T12:00:00')),
+            end_time=timezone.make_aware(datetime.fromisoformat(f'{day}T13:30:00')),
+        )
+        payload = self.schedule_payload(intern, start='11:00', end='14:00', title='跨午休请假')
+        payload['schedule_type'] = InternSchedule.TYPE_LEAVE
+
+        response = self.client.post(
+            '/api/intern-schedules/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(InternSchedule.objects.filter(intern=intern).count(), 3)
 
     def test_member_can_create_but_not_edit_others_schedule_and_conflicts_are_rejected(self):
         intern = Intern.objects.create(name='成员安排对象')

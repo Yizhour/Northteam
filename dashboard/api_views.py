@@ -5,6 +5,7 @@ from datetime import datetime, time, timedelta
 
 from django.contrib.auth import authenticate, login, logout
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -15,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.storage import load_config
 
-from .models import FeatureAccess, Intern, InternSchedule
+from .models import FeatureAccess, Intern, InternSchedule, split_ranges_around_lunch
 from .permissions import (
     ROLE_LABELS,
     features_for_user,
@@ -198,6 +199,19 @@ def serialize_schedule(schedule, user=None, public_intern=None):
         'can_edit': can_edit_schedule(user, schedule, public_intern),
         'can_delete': can_edit_schedule(user, schedule, public_intern),
     }
+
+
+def build_schedule_ranges(start_time, end_time):
+    return split_ranges_around_lunch(start_time, end_time)
+
+
+def serialize_created_schedules(schedules, user):
+    if not schedules:
+        return {'skipped': True, 'schedules': []}
+    data = serialize_schedule(schedules[0], user)
+    if len(schedules) > 1:
+        data['split_schedules'] = [serialize_schedule(schedule, user) for schedule in schedules]
+    return data
 
 
 def serialize_feature(feature):
@@ -446,21 +460,30 @@ def intern_schedules_api(request):
         return api_error('安排类型不正确。', status=400)
 
     try:
-        schedule = InternSchedule.objects.create(
-            intern=intern,
-            created_by=request.user,
-            schedule_type=schedule_type,
-            title=str(payload.get('title') or ('请假' if schedule_type == InternSchedule.TYPE_LEAVE else '')).strip(),
-            notes=str(payload.get('notes') or '').strip(),
-            start_time=parse_schedule_datetime(payload.get('start_time')),
-            end_time=parse_schedule_datetime(payload.get('end_time')),
-        )
+        start_time = parse_schedule_datetime(payload.get('start_time'))
+        end_time = parse_schedule_datetime(payload.get('end_time'))
+        title = str(payload.get('title') or ('请假' if schedule_type == InternSchedule.TYPE_LEAVE else '')).strip()
+        notes = str(payload.get('notes') or '').strip()
+        schedules = []
+        with transaction.atomic():
+            for range_start, range_end in build_schedule_ranges(start_time, end_time):
+                schedules.append(
+                    InternSchedule.objects.create(
+                        intern=intern,
+                        created_by=request.user,
+                        schedule_type=schedule_type,
+                        title=title,
+                        notes=notes,
+                        start_time=range_start,
+                        end_time=range_end,
+                    )
+                )
     except ValueError as exc:
         return api_error(str(exc), status=400)
     except ValidationError as exc:
         return api_error(validation_message(exc), status=400)
 
-    return api_ok(serialize_schedule(schedule, request.user))
+    return api_ok(serialize_created_schedules(schedules, request.user))
 
 
 @require_http_methods(['GET', 'PATCH', 'DELETE'])
@@ -510,13 +533,35 @@ def intern_schedule_detail_api(request, schedule_id):
             schedule.start_time = parse_schedule_datetime(payload.get('start_time'))
         if 'end_time' in payload:
             schedule.end_time = parse_schedule_datetime(payload.get('end_time'))
-        schedule.save()
+        ranges = build_schedule_ranges(schedule.start_time, schedule.end_time)
+        if not ranges:
+            schedule.delete()
+            return api_ok({'skipped': True, 'schedules': []})
+        schedules = []
+        with transaction.atomic():
+            first_start, first_end = ranges[0]
+            schedule.start_time = first_start
+            schedule.end_time = first_end
+            schedule.save()
+            schedules.append(schedule)
+            for range_start, range_end in ranges[1:]:
+                schedules.append(
+                    InternSchedule.objects.create(
+                        intern=schedule.intern,
+                        created_by=request.user,
+                        schedule_type=schedule.schedule_type,
+                        title=schedule.title,
+                        notes=schedule.notes,
+                        start_time=range_start,
+                        end_time=range_end,
+                    )
+                )
     except ValueError as exc:
         return api_error(str(exc), status=400)
     except ValidationError as exc:
         return api_error(validation_message(exc), status=400)
 
-    return api_ok(serialize_schedule(schedule, request.user))
+    return api_ok(serialize_created_schedules(schedules, request.user))
 
 
 @require_http_methods(['GET'])

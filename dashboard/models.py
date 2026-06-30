@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import datetime, time
 import secrets
 
 from django.conf import settings
@@ -76,6 +76,35 @@ def format_local_range(start_time, end_time):
     return f'{local_start:%Y-%m-%d %H:%M}-{local_end:%H:%M}'
 
 
+WORK_START = time(9, 0)
+WORK_END = time(18, 0)
+LUNCH_START = time(12, 0)
+LUNCH_END = time(13, 30)
+
+
+def local_datetime_on(date_value, time_value):
+    return timezone.make_aware(datetime.combine(date_value, time_value), timezone.get_current_timezone())
+
+
+def split_ranges_around_lunch(start_time, end_time):
+    local_start = timezone.localtime(start_time)
+    local_end = timezone.localtime(end_time)
+    if local_start.date() != local_end.date():
+        return [(start_time, end_time)]
+
+    lunch_start = local_datetime_on(local_start.date(), LUNCH_START)
+    lunch_end = local_datetime_on(local_start.date(), LUNCH_END)
+    if start_time >= lunch_end or end_time <= lunch_start:
+        return [(start_time, end_time)]
+
+    ranges = []
+    if start_time < lunch_start:
+        ranges.append((start_time, min(end_time, lunch_start)))
+    if end_time > lunch_end:
+        ranges.append((max(start_time, lunch_end), end_time))
+    return [(start, end) for start, end in ranges if start < end]
+
+
 class Intern(models.Model):
     """Standalone intern profile with a private schedule access link."""
 
@@ -135,6 +164,13 @@ class InternSchedule(models.Model):
     def __str__(self):
         return f'{self.intern} - {self.title}'
 
+    def effective_ranges(self):
+        if not self.start_time or not self.end_time:
+            return []
+        if self.schedule_type != self.TYPE_LEAVE:
+            return [(self.start_time, self.end_time)]
+        return split_ranges_around_lunch(self.start_time, self.end_time)
+
     def clean(self):
         errors = {}
         if self.start_time and timezone.is_naive(self.start_time):
@@ -149,16 +185,13 @@ class InternSchedule(models.Model):
                 errors['end_time'] = '结束时间必须大于开始时间。'
             if local_start.date() != local_end.date():
                 errors['end_time'] = '工作安排不能跨天。'
-            work_start = time(9, 0)
-            work_end = time(18, 0)
-            lunch_start = time(12, 0)
-            lunch_end = time(13, 30)
-            if local_start.time() < work_start or local_end.time() > work_end:
+            if local_start.time() < WORK_START or local_end.time() > WORK_END:
                 errors['start_time'] = '工作安排时间必须在 9:00-18:00 之间。'
-            if local_start.time() < lunch_end and local_end.time() > lunch_start:
-                errors['start_time'] = '12:00-13:30 为午休时间，不能安排工作或请假。'
+            if self.schedule_type != self.TYPE_LEAVE and local_start.time() < LUNCH_END and local_end.time() > LUNCH_START:
+                errors['start_time'] = '12:00-13:30 为午休时间，不能安排工作。'
 
         if self.intern_id and self.start_time and self.end_time:
+            current_ranges = self.effective_ranges()
             conflicts = InternSchedule.objects.filter(
                 intern=self.intern,
                 start_time__lt=self.end_time,
@@ -166,14 +199,21 @@ class InternSchedule(models.Model):
             )
             if self.pk:
                 conflicts = conflicts.exclude(pk=self.pk)
-            conflict = conflicts.order_by('start_time', 'id').first()
-            if conflict:
-                overlap_start = max(self.start_time, conflict.start_time)
-                overlap_end = min(self.end_time, conflict.end_time)
-                errors['start_time'] = (
-                    f'该时间段已有安排：{conflict.title}（{format_local_range(conflict.start_time, conflict.end_time)}）；'
-                    f'重叠时间：{format_local_range(overlap_start, overlap_end)}。'
-                )
+            for conflict in conflicts.order_by('start_time', 'id'):
+                for start, end in current_ranges:
+                    for conflict_start, conflict_end in conflict.effective_ranges():
+                        overlap_start = max(start, conflict_start)
+                        overlap_end = min(end, conflict_end)
+                        if overlap_start < overlap_end:
+                            errors['start_time'] = (
+                                f'该时间段已有安排：{conflict.title}（{format_local_range(conflict.start_time, conflict.end_time)}）；'
+                                f'重叠时间：{format_local_range(overlap_start, overlap_end)}。'
+                            )
+                            break
+                    if 'start_time' in errors:
+                        break
+                if 'start_time' in errors:
+                    break
 
         if errors:
             raise ValidationError(errors)
