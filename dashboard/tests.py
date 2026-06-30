@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -229,6 +230,96 @@ class DashboardPageTests(TestCase):
 
         self.assertEqual(len(smtp_ssl_calls), 1)
         smtp.assert_not_called()
+
+    def test_mailer_uses_only_ssl_465(self):
+        from tools.bondreminder.app import mailer
+
+        smtp_ssl_calls = []
+
+        class FakeSMTPSSL:
+            def __init__(self, *args, **kwargs):
+                smtp_ssl_calls.append(args)
+
+            def login(self, sender, password):
+                pass
+
+            def sendmail(self, sender, receivers, message_bytes):
+                pass
+
+            def quit(self):
+                pass
+
+            def close(self):
+                pass
+
+        mailer._last_successful_send_at = 0.0
+        mailer._last_successful_candidate = None
+        with patch.object(mailer.smtplib, 'SMTP_SSL', FakeSMTPSSL), patch.object(mailer.smtplib, 'SMTP') as smtp:
+            result = mailer.send_mail(
+                'sender@example.com',
+                'secret',
+                ['user@example.com'],
+                MIMEText('body', 'plain', 'utf-8'),
+            )
+
+        self.assertEqual(result['mode'], 'ssl')
+        self.assertEqual(result['port'], 465)
+        self.assertEqual(smtp_ssl_calls[0][1], 465)
+        smtp.assert_not_called()
+
+    def test_bondreminder_logs_are_persisted_and_clearable(self):
+        from tools.bondreminder.app.logging_utils import append_log, clear_logs, read_logs
+
+        clear_logs()
+        first = append_log('first persistent log')
+        second = append_log('second persistent log')
+
+        self.assertEqual(read_logs(), [first, second])
+        self.assertEqual(read_logs(limit=1), [second])
+
+        clear_logs()
+        self.assertEqual(read_logs(), [])
+
+    def test_scheduler_lock_rejects_active_owner_and_accepts_stale_lock(self):
+        from tools.bondreminder.app.scheduler import CrossProcessLock
+
+        with TemporaryDirectory() as tmpdir:
+            lock_path = Path(tmpdir) / 'scheduler.lock'
+            lock_path.write_text(json.dumps({'token': 'other', 'updated_at': time.time()}), encoding='utf-8')
+
+            active_lock = CrossProcessLock(lock_path, ttl_seconds=30)
+            self.assertFalse(active_lock.acquire())
+
+            lock_path.write_text(json.dumps({'token': 'other', 'updated_at': time.time() - 60}), encoding='utf-8')
+            stale_lock = CrossProcessLock(lock_path, ttl_seconds=30)
+            self.assertTrue(stale_lock.acquire())
+            stale_lock.release()
+
+    def test_scheduler_refresh_rebuilds_jobs_when_config_changes(self):
+        import schedule
+        from tools.bondreminder.app.scheduler import SchedulerService
+
+        service = SchedulerService()
+        config_without_daily = {
+            'weekly_enabled': False,
+            'daily_enabled': False,
+            'custom_tasks': [],
+        }
+        config_with_daily = {
+            'weekly_enabled': False,
+            'daily_enabled': True,
+            'daily_time': '09:00',
+            'custom_tasks': [],
+        }
+
+        try:
+            with patch('tools.bondreminder.app.scheduler.load_config', side_effect=[config_without_daily, config_with_daily]):
+                service.refresh_if_config_changed()
+                self.assertEqual(len(schedule.jobs), 1)
+                service.refresh_if_config_changed()
+                self.assertEqual(len(schedule.jobs), 2)
+        finally:
+            schedule.clear()
 
     def test_super_admin_can_open_access_control_and_admin(self):
         User.objects.create_superuser('root', 'root@example.com', 'pass12345', first_name='root')

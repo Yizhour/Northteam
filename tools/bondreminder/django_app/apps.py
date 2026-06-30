@@ -19,4 +19,5 @@ class BondReminderConfig(AppConfig):
 
         ensure_directories()
         if SCHEDULER_ENABLED:
-            scheduler_service.start()
+            if not scheduler_service.start():
+                scheduler_service.start_monitor()

@@ -37,3 +37,16 @@ class BondReminderTableRow(models.Model):
 
     def __str__(self):
         return f'{self.get_table_key_display()} #{self.row_index}'
+
+
+class BondReminderLog(models.Model):
+    line = models.TextField('运行日志')
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = '付息兑付运行日志'
+        verbose_name_plural = '付息兑付运行日志'
+
+    def __str__(self):
+        return self.line[:80]
