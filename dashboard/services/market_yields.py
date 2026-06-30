@@ -100,7 +100,7 @@ def query_yield_curve(session, curve_id, date_str):
         'xyzSelect': 'txy',
         'workTimes': date_str,
         'dxbj': '4',
-        'qxll': '1,',
+        'qxll': '0,',
         'yqqxN': 'N',
         'yqqxK': 'K',
         'ycDefIds': f'{curve_id},',
