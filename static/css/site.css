@@ -592,6 +592,99 @@ h2 {
     color: var(--color-muted);
 }
 
+.common-sites-panel {
+    margin-top: 22px;
+}
+
+.common-sites-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.common-site-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 10px 12px;
+    color: var(--color-navy);
+    background: #fbfcfe;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.common-site-link:hover {
+    background: var(--color-blue-soft);
+    border-color: #8db9df;
+}
+
+.common-site-url {
+    overflow: hidden;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.common-sites-admin {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-line);
+}
+
+.common-site-form,
+.common-site-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.5fr) 80px 72px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.common-site-form input,
+.common-site-row input {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 9px;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+}
+
+.common-site-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.common-site-check input {
+    width: auto;
+}
+
+.common-site-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.common-site-empty {
+    padding: 14px;
+    color: var(--color-muted);
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    text-align: center;
+}
+
 .bond-reminder-panel {
     margin-bottom: 22px;
     padding: 20px;
@@ -1312,6 +1405,11 @@ h2 {
     }
 
     .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .common-site-form,
+    .common-site-row {
         grid-template-columns: 1fr;
     }
 

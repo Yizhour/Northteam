@@ -16,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.storage import load_config
 
-from dashboard.models import FeatureAccess, Intern, InternSchedule
+from dashboard.models import CommonWebsite, FeatureAccess, Intern, InternSchedule
 from dashboard.permissions import (
     ROLE_LABELS,
     features_for_user,
@@ -39,29 +39,7 @@ FEATURE_PATHS = {
     'interns': '/interns',
 }
 
-OVERVIEW_DATA = {
-    'summary_cards': [
-        {'label': '进行中项目', 'value': '12', 'hint': '本周新增 2 项'},
-        {'label': '待处理事项', 'value': '8', 'hint': '含 3 项今日到期'},
-        {'label': '共享文件', 'value': '36', 'hint': '最近更新 5 份'},
-        {'label': '实习生登记', 'value': '4', 'hint': '待复核资料 1 份'},
-    ],
-    'quick_links': [
-        {'label': '新建项目台账', 'description': '预留项目空间入口'},
-        {'label': '上传共享文件', 'description': '预留文件共享入口'},
-        {'label': '登记实习生', 'description': '预留人员登记入口'},
-        {'label': '查看常用信息', 'description': '预留信息查询入口'},
-    ],
-    'todos': [
-        '复核本周项目材料归档状态',
-        '整理常用模板与制度文件',
-        '确认实习生登记信息完整性',
-    ],
-    'announcements': [
-        'NorthTeam2 内部管理系统已切换为 Vue 前端。',
-        '后端继续提供权限、Admin 和业务 API。',
-    ],
-}
+OVERVIEW_DATA = {}
 
 
 def api_ok(data=None, **kwargs):
@@ -330,6 +308,10 @@ def overview_api(request):
         **OVERVIEW_DATA,
         'bond_reminder': bond_reminder_overview(),
         'market_yields': market_yield_overview(),
+        'common_websites': [
+            {'name': website.name, 'url': website.url}
+            for website in CommonWebsite.objects.filter(is_active=True)
+        ],
     }
     return api_ok(data)
 

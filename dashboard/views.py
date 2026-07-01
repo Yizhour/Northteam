@@ -1,11 +1,15 @@
 from django.contrib.staticfiles import finders
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.validators import URLValidator
 from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from .api_views import bond_reminder_overview
 from .decorators import feature_required
+from .models import CommonWebsite
 from .permissions import features_for_user, is_super_admin
 from .services.market_yield_refresh import get_refresh_job, refresh_job_payload, start_market_yield_refresh
 from .services.market_yields import market_yield_overview
@@ -30,36 +34,84 @@ def base_context(request, active_nav):
 @feature_required('overview')
 def home(request):
     """Render the first dashboard page for the internal OA-style workspace."""
+    can_manage_common_websites = is_super_admin(request.user)
     context = base_context(request, '概况')
     context.update(
         {
-            'summary_cards': [
-                {'label': '进行中项目', 'value': '12', 'hint': '本周新增 2 项'},
-                {'label': '待处理事项', 'value': '8', 'hint': '含 3 项今日到期'},
-                {'label': '共享文件', 'value': '36', 'hint': '最近更新 5 份'},
-                {'label': '实习生登记', 'value': '4', 'hint': '待复核资料 1 份'},
-            ],
-            'quick_links': [
-                {'label': '新建项目台账', 'description': '预留项目空间入口'},
-                {'label': '上传共享文件', 'description': '预留文件共享入口'},
-                {'label': '登记实习生', 'description': '预留人员登记入口'},
-                {'label': '查看常用信息', 'description': '预留信息查询入口'},
-            ],
-            'todos': [
-                '复核本周项目材料归档状态',
-                '整理常用模板与制度文件',
-                '确认实习生登记信息完整性',
-            ],
-            'announcements': [
-                'NorthTeam2 内部管理系统首版已初始化。',
-                '后续可逐步接入项目、文件、错题本等业务模块。',
-            ],
             'bond_reminder': bond_reminder_overview(),
             'market_yields': market_yield_overview(),
             'market_yield_refresh': refresh_job_payload(get_refresh_job()),
+            'common_website_links': CommonWebsite.objects.filter(is_active=True),
+            'common_website_admin_items': CommonWebsite.objects.all() if can_manage_common_websites else [],
+            'can_manage_common_websites': can_manage_common_websites,
         }
     )
     return render(request, 'dashboard/home.html', context)
+
+
+def _require_common_website_admin(request):
+    if not is_super_admin(request.user):
+        raise PermissionDenied
+
+
+def _clean_common_website_payload(post_data):
+    name = (post_data.get('name') or '').strip()
+    url = (post_data.get('url') or '').strip()
+    if url and '://' not in url:
+        url = f'https://{url}'
+    try:
+        sort_order = int(post_data.get('sort_order') or 100)
+    except (TypeError, ValueError):
+        sort_order = 100
+    is_active = post_data.get('is_active') == 'on'
+    if not name:
+        raise ValidationError('网站名不能为空。')
+    if not url:
+        raise ValidationError('网站链接不能为空。')
+    URLValidator()(url)
+    return {
+        'name': name,
+        'url': url,
+        'sort_order': max(0, sort_order),
+        'is_active': is_active,
+    }
+
+
+@require_POST
+@feature_required('overview')
+def common_website_create(request):
+    _require_common_website_admin(request)
+    try:
+        CommonWebsite.objects.create(**_clean_common_website_payload(request.POST))
+        messages.success(request, '常用网站已添加。')
+    except ValidationError as exc:
+        messages.error(request, '; '.join(exc.messages))
+    return redirect('dashboard:home')
+
+
+@require_POST
+@feature_required('overview')
+def common_website_update(request, website_id):
+    _require_common_website_admin(request)
+    website = get_object_or_404(CommonWebsite, pk=website_id)
+    try:
+        payload = _clean_common_website_payload(request.POST)
+        for field, value in payload.items():
+            setattr(website, field, value)
+        website.save(update_fields=['name', 'url', 'sort_order', 'is_active', 'updated_at'])
+        messages.success(request, '常用网站已更新。')
+    except ValidationError as exc:
+        messages.error(request, '; '.join(exc.messages))
+    return redirect('dashboard:home')
+
+
+@require_POST
+@feature_required('overview')
+def common_website_delete(request, website_id):
+    _require_common_website_admin(request)
+    get_object_or_404(CommonWebsite, pk=website_id).delete()
+    messages.success(request, '常用网站已删除。')
+    return redirect('dashboard:home')
 
 
 @require_POST

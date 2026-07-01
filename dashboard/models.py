@@ -252,3 +252,22 @@ class MarketYieldRefreshJob(models.Model):
 
     def __str__(self):
         return f'{self.key}: {self.status}'
+
+
+class CommonWebsite(models.Model):
+    """Website shortcut shown on the dashboard home page."""
+
+    name = models.CharField('网站名', max_length=120)
+    url = models.URLField('网站链接', max_length=500)
+    sort_order = models.PositiveIntegerField('排序', default=100)
+    is_active = models.BooleanField('启用', default=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name', 'id']
+        verbose_name = '常用网站'
+        verbose_name_plural = '常用网站'
+
+    def __str__(self):
+        return self.name

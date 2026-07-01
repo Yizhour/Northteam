@@ -16,7 +16,7 @@ from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.config import BOND_CACHE_FILE
 from tools.bondreminder.app.storage import save_bond_table_from_upload
 
-from .models import Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint, MarketYieldRefreshJob
+from .models import CommonWebsite, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint, MarketYieldRefreshJob
 from .services.market_yields import market_yield_overview, prune_old_market_yields
 
 
@@ -330,9 +330,9 @@ class DashboardPageTests(TestCase):
         today = timezone.localdate()
         if today.weekday() >= 5:
             today = today + timedelta(days=7 - today.weekday())
-        first_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=6))
-        second_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=6, minute=30))
-        third_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=7))
+        first_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18))
+        second_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=30))
+        third_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=19))
 
         with patch('dashboard.services.market_yield_scheduler.random.randint', return_value=0), patch(
             'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
@@ -462,6 +462,7 @@ class DashboardPageTests(TestCase):
 
         self.assertEqual(anonymous_response.status_code, 401)
 
+        CommonWebsite.objects.create(name='交易所', url='https://www.sse.com.cn/', sort_order=1)
         self.user_in_group('vue_member_overview', '正式成员')
         self.client.login(username='vue_member_overview', password='pass12345')
         member_response = self.client.get('/api/overview/')
@@ -473,6 +474,63 @@ class DashboardPageTests(TestCase):
         self.assertIn('weekly_events', bond_reminder)
         self.assertIn('today_events', bond_reminder)
         self.assertIn('display_columns', bond_reminder)
+        self.assertEqual(member_payload['data']['common_websites'][0]['name'], '交易所')
+
+    def test_home_removes_demo_sections_and_shows_common_websites(self):
+        CommonWebsite.objects.create(name='中债指数', url='https://indices.chinabond.com.cn/', sort_order=1)
+        self.user_in_group('home_member', '正式成员')
+        self.client.login(username='home_member', password='pass12345')
+
+        response = self.client.get(reverse('dashboard:home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '常用网站')
+        self.assertContains(response, '中债指数')
+        self.assertNotContains(response, '进行中项目')
+        self.assertNotContains(response, '待处理事项')
+        self.assertNotContains(response, '本周新增 2 项')
+        self.assertNotContains(response, '含 3 项今日到期')
+        self.assertNotContains(response, '最近更新 5 份')
+        self.assertNotContains(response, '待复核资料 1 份')
+        self.assertNotContains(response, '今日待办')
+        self.assertNotContains(response, '系统公告')
+        self.assertNotContains(response, 'name="sort_order"')
+
+    def test_super_admin_can_manage_common_websites(self):
+        User.objects.create_superuser('site_admin', 'site@example.com', 'pass12345', first_name='site_admin')
+        self.client.login(username='site_admin', password='pass12345')
+
+        create_response = self.client.post(
+            reverse('dashboard:common_website_create'),
+            data={'name': '中债', 'url': 'indices.chinabond.com.cn', 'sort_order': '3', 'is_active': 'on'},
+        )
+        website = CommonWebsite.objects.get(name='中债')
+        update_response = self.client.post(
+            reverse('dashboard:common_website_update', args=[website.id]),
+            data={'name': '中债收益率', 'url': 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN', 'sort_order': '1'},
+        )
+        website.refresh_from_db()
+        delete_response = self.client.post(reverse('dashboard:common_website_delete', args=[website.id]))
+
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(website.url, 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN')
+        self.assertEqual(website.sort_order, 1)
+        self.assertFalse(website.is_active)
+        self.assertEqual(update_response.status_code, 302)
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertFalse(CommonWebsite.objects.filter(id=website.id).exists())
+
+    def test_member_cannot_manage_common_websites(self):
+        self.user_in_group('site_member', '正式成员')
+        self.client.login(username='site_member', password='pass12345')
+
+        response = self.client.post(
+            reverse('dashboard:common_website_create'),
+            data={'name': 'Nope', 'url': 'https://example.com', 'sort_order': '1', 'is_active': 'on'},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(CommonWebsite.objects.exists())
 
     def test_overview_requires_login_even_if_anonymous_permission_is_enabled(self):
         FeatureAccess.objects.filter(
