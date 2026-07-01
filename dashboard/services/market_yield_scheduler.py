@@ -16,9 +16,7 @@ HEARTBEAT_SECONDS = 10
 MONITOR_SECONDS = 30
 LOOP_SECONDS = 20
 FETCH_WINDOWS = (
-    (datetime_time(18, 0), datetime_time(18, 10)),
-    (datetime_time(18, 30), datetime_time(18, 40)),
-    (datetime_time(19, 0), datetime_time(19, 10)),
+    (datetime_time(5, 40), datetime_time(5, 45)),
 )
 
 
