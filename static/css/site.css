@@ -449,6 +449,7 @@ h2 {
 }
 
 .market-yield-panel {
+    margin-bottom: 22px;
     padding: 20px;
 }
 
@@ -456,11 +457,21 @@ h2 {
     align-items: center;
 }
 
+.market-yield-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .market-yield-heading form {
     margin: 0;
 }
 
-.market-refresh-button {
+.market-refresh-button,
+.market-more-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 34px;
     padding: 7px 11px;
     color: var(--color-navy);
@@ -473,7 +484,8 @@ h2 {
     font-weight: 700;
 }
 
-.market-refresh-button:hover {
+.market-refresh-button:hover,
+.market-more-button:hover {
     background: var(--color-blue-soft);
     border-color: #8db9df;
 }

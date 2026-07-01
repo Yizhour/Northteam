@@ -323,6 +323,29 @@ class DashboardPageTests(TestCase):
         finally:
             schedule.clear()
 
+    def test_market_yield_scheduler_retries_until_success(self):
+        from dashboard.services.market_yield_scheduler import MarketYieldScheduler
+
+        service = MarketYieldScheduler()
+        today = timezone.localdate()
+        if today.weekday() >= 5:
+            today = today + timedelta(days=7 - today.weekday())
+        first_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=6))
+        second_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=6, minute=30))
+        third_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=7))
+
+        with patch('dashboard.services.market_yield_scheduler.random.randint', return_value=0), patch(
+            'dashboard.services.market_yield_scheduler.fetch_recent_market_yields',
+            side_effect=[{'ok': False}, {'ok': True}],
+        ) as fetch_mock:
+            with patch('dashboard.services.market_yield_scheduler.timezone.localtime', side_effect=[first_run, second_run, third_run]):
+                service._run_if_due()
+                service._run_if_due()
+                service._run_if_due()
+
+        self.assertEqual(fetch_mock.call_count, 2)
+        self.assertEqual(service._run_date, today)
+
     def test_super_admin_can_open_access_control_and_admin(self):
         User.objects.create_superuser('root', 'root@example.com', 'pass12345', first_name='root')
         self.client.login(username='root', password='pass12345')

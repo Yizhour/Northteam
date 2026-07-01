@@ -15,6 +15,11 @@ SCHEDULER_LOCK_TTL_SECONDS = 60
 HEARTBEAT_SECONDS = 10
 MONITOR_SECONDS = 30
 LOOP_SECONDS = 20
+FETCH_WINDOWS = (
+    (datetime_time(6, 0), datetime_time(6, 10)),
+    (datetime_time(6, 30), datetime_time(6, 40)),
+    (datetime_time(7, 0), datetime_time(7, 10)),
+)
 
 
 class MarketYieldScheduler:
@@ -27,6 +32,8 @@ class MarketYieldScheduler:
         self._last_heartbeat = 0.0
         self._run_date = None
         self._target_run_at = None
+        self._attempt_date = None
+        self._attempt_index = 0
 
     def start(self):
         with self._thread_lock:
@@ -76,19 +83,34 @@ class MarketYieldScheduler:
     def _run_if_due(self):
         now = timezone.localtime()
         today = now.date()
-        if today.weekday() >= 5:
-            self._target_run_at = None
-            return
         if self._run_date == today:
             return
+        if self._attempt_date != today:
+            self._attempt_date = today
+            self._attempt_index = 0
+            self._target_run_at = None
+        if self._attempt_index >= len(FETCH_WINDOWS):
+            return
         if self._target_run_at is None or self._target_run_at.date() != today:
-            base = timezone.make_aware(datetime.combine(today, datetime_time(19, 0)))
-            self._target_run_at = base + timedelta(minutes=random.randint(0, 10))
+            self._target_run_at = self._random_time_in_window(today, self._attempt_index)
         if now >= self._target_run_at:
-            try:
-                fetch_recent_market_yields()
-            finally:
+            result = fetch_recent_market_yields()
+            if result.get('ok'):
                 self._run_date = today
+                return
+            self._attempt_index += 1
+            self._target_run_at = (
+                self._random_time_in_window(today, self._attempt_index)
+                if self._attempt_index < len(FETCH_WINDOWS)
+                else None
+            )
+
+    def _random_time_in_window(self, day, window_index):
+        start_time, end_time = FETCH_WINDOWS[window_index]
+        start_at = timezone.make_aware(datetime.combine(day, start_time))
+        end_at = timezone.make_aware(datetime.combine(day, end_time))
+        seconds = max(0, int((end_at - start_at).total_seconds()))
+        return start_at + timedelta(seconds=random.randint(0, seconds))
 
 
 def should_start_market_yield_scheduler():
