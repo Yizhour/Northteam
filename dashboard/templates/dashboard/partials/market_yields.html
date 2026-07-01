@@ -1,0 +1,52 @@
+<div id="marketYieldContent"
+     class="market-yield-content"
+     data-refresh-status="{{ market_yield_refresh.status }}"
+     data-refresh-updated-at="{{ market_yield_refresh.updated_at|default:'' }}"
+     data-market-updated-at="{% if market_yields.updated_at %}{{ market_yields.updated_at|date:'c' }}{% endif %}">
+    {% if market_yield_refresh.running %}
+        <div class="page-message info" role="status">正在更新收益率数据，请稍候...</div>
+    {% elif market_yield_refresh.status == 'failed' and market_yield_refresh.message %}
+        <div class="page-message error" role="alert">{{ market_yield_refresh.message }}</div>
+    {% endif %}
+
+    <div class="market-yield-meta">
+        {% if market_yields.available %}
+            <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
+            <span>最新数据：{{ market_yields.latest_date|date:"Y-m-d" }}</span>
+            <span>（每天 6:00-6:10 自动更新，失败后 6:30-6:40、7:00-7:10 重试，也可手动点击更新）</span>
+        {% else %}
+            <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
+            <span>暂无数据，点击更新后展示。（每天 6:00-6:10 自动更新，失败后 6:30-6:40、7:00-7:10 重试）</span>
+        {% endif %}
+    </div>
+    <div class="market-yield-table-wrap">
+        <table class="market-yield-table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>曲线</th>
+                    {% for maturity in market_yields.maturities %}
+                        <th>{{ maturity }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in market_yields.rows %}
+                    <tr{% if row.is_previous %} class="previous-day"{% endif %}>
+                        {% if row.show_date %}
+                            <td class="market-yield-date" rowspan="{{ row.date_rowspan }}">{{ row.date|date:"m-d" }}</td>
+                        {% endif %}
+                        <th scope="row">{{ row.curve }}</th>
+                        {% for cell in row.cells %}
+                            <td class="yield-cell {{ cell.direction }}">{{ cell.display }}</td>
+                        {% endfor %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan='{{ market_yields.maturities|length|add:"2" }}' class="market-yield-empty">暂无收益率数据</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

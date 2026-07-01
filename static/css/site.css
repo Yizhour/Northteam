@@ -448,6 +448,12 @@ h2 {
     border: 1px solid #fecaca;
 }
 
+.page-message.info {
+    color: #1d4f7a;
+    background: #e8f1fa;
+    border: 1px solid #b8d5ef;
+}
+
 .market-yield-panel {
     margin-bottom: 22px;
     padding: 20px;
@@ -488,6 +494,13 @@ h2 {
 .market-more-button:hover {
     background: var(--color-blue-soft);
     border-color: #8db9df;
+}
+
+.market-refresh-button:disabled {
+    color: #637083;
+    background: #f3f6fa;
+    border-color: var(--color-line);
+    cursor: wait;
 }
 
 .market-yield-meta {
@@ -554,6 +567,11 @@ h2 {
 .market-yield-table tbody tr:last-child th,
 .market-yield-table tbody tr:last-child td {
     border-bottom: 0;
+}
+
+.market-yield-empty {
+    color: var(--color-muted);
+    text-align: center !important;
 }
 
 .yield-cell {

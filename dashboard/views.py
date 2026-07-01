@@ -1,13 +1,14 @@
-from django.contrib import messages
 from django.contrib.staticfiles import finders
-from django.http import Http404, HttpResponse
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from .api_views import bond_reminder_overview
 from .decorators import feature_required
 from .permissions import features_for_user, is_super_admin
-from .services.market_yields import fetch_recent_market_yields, market_yield_overview
+from .services.market_yield_refresh import get_refresh_job, refresh_job_payload, start_market_yield_refresh
+from .services.market_yields import market_yield_overview
 
 NAV_FEATURE_KEYS = {'overview', 'projects', 'tools', 'info', 'files', 'mistakes', 'interns'}
 
@@ -55,6 +56,7 @@ def home(request):
             ],
             'bond_reminder': bond_reminder_overview(),
             'market_yields': market_yield_overview(),
+            'market_yield_refresh': refresh_job_payload(get_refresh_job()),
         }
     )
     return render(request, 'dashboard/home.html', context)
@@ -63,10 +65,41 @@ def home(request):
 @require_POST
 @feature_required('overview')
 def market_yields_refresh(request):
-    result = fetch_recent_market_yields()
-    if not result.get('ok'):
-        messages.error(request, result.get('message') or '收益率数据更新失败。')
-    return redirect('dashboard:home')
+    job, started = start_market_yield_refresh(request.user)
+    overview = market_yield_overview()
+    return JsonResponse(
+        {
+            'ok': True,
+            'started': started,
+            'refresh': refresh_job_payload(job),
+            'market_yields': overview,
+            'html': render_market_yields_html(overview, job),
+        }
+    )
+
+
+@feature_required('overview')
+def market_yields_status(request):
+    job = get_refresh_job()
+    overview = market_yield_overview()
+    return JsonResponse(
+        {
+            'ok': True,
+            'refresh': refresh_job_payload(job),
+            'market_yields': overview,
+            'html': render_market_yields_html(overview, job),
+        }
+    )
+
+
+def render_market_yields_html(overview, job):
+    return render_to_string(
+        'dashboard/partials/market_yields.html',
+        {
+            'market_yields': overview,
+            'market_yield_refresh': refresh_job_payload(job),
+        },
+    )
 
 
 @feature_required('tools')

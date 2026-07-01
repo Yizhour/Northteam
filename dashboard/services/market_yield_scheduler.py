@@ -8,7 +8,7 @@ from datetime import datetime, time as datetime_time, timedelta
 from django.utils import timezone
 
 from dashboard.services.file_locks import CrossProcessFileLock
-from dashboard.services.market_yields import fetch_recent_market_yields
+from dashboard.services.market_yield_refresh import run_market_yield_refresh
 
 
 SCHEDULER_LOCK_TTL_SECONDS = 60
@@ -94,7 +94,7 @@ class MarketYieldScheduler:
         if self._target_run_at is None or self._target_run_at.date() != today:
             self._target_run_at = self._random_time_in_window(today, self._attempt_index)
         if now >= self._target_run_at:
-            result = fetch_recent_market_yields()
+            result = run_market_yield_refresh(trigger='auto', requested_by='scheduler')
             if result.get('ok'):
                 self._run_date = today
                 return

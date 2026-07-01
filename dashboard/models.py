@@ -222,3 +222,33 @@ class MarketYieldPoint(models.Model):
 
     def __str__(self):
         return f'{self.trading_date} {self.curve_name} {self.maturity_label} {self.yield_rate}%'
+
+
+class MarketYieldRefreshJob(models.Model):
+    """Cross-process status for the dashboard market-yield refresh."""
+
+    STATUS_IDLE = 'idle'
+    STATUS_RUNNING = 'running'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = [
+        (STATUS_IDLE, 'Idle'),
+        (STATUS_RUNNING, 'Running'),
+        (STATUS_SUCCESS, 'Success'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
+    key = models.CharField(max_length=40, unique=True, default='default')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_IDLE)
+    message = models.CharField(max_length=500, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    requested_by = models.CharField(max_length=150, blank=True)
+    trigger = models.CharField(max_length=40, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['key']
+
+    def __str__(self):
+        return f'{self.key}: {self.status}'

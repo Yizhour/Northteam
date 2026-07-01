@@ -16,7 +16,7 @@ from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.config import BOND_CACHE_FILE
 from tools.bondreminder.app.storage import save_bond_table_from_upload
 
-from .models import Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint
+from .models import Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint, MarketYieldRefreshJob
 from .services.market_yields import market_yield_overview, prune_old_market_yields
 
 
@@ -335,7 +335,7 @@ class DashboardPageTests(TestCase):
         third_run = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=7))
 
         with patch('dashboard.services.market_yield_scheduler.random.randint', return_value=0), patch(
-            'dashboard.services.market_yield_scheduler.fetch_recent_market_yields',
+            'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
             side_effect=[{'ok': False}, {'ok': True}],
         ) as fetch_mock:
             with patch('dashboard.services.market_yield_scheduler.timezone.localtime', side_effect=[first_run, second_run, third_run]):
@@ -552,6 +552,60 @@ class DashboardPageTests(TestCase):
         self.assertFalse(
             MarketYieldPoint.objects.filter(trading_date=latest_day - timedelta(days=30)).exists()
         )
+
+    def test_market_yield_refresh_service_starts_one_background_job(self):
+        from dashboard.services.market_yield_refresh import start_market_yield_refresh
+
+        with patch('dashboard.services.market_yield_refresh.threading.Thread') as thread_class:
+            first_job, first_started = start_market_yield_refresh(trigger='manual')
+            second_job, second_started = start_market_yield_refresh(trigger='manual')
+
+        self.assertTrue(first_started)
+        self.assertFalse(second_started)
+        self.assertEqual(first_job.status, MarketYieldRefreshJob.STATUS_RUNNING)
+        self.assertEqual(second_job.status, MarketYieldRefreshJob.STATUS_RUNNING)
+        thread_class.assert_called_once()
+        thread_class.return_value.start.assert_called_once()
+
+    def test_market_yield_refresh_endpoint_returns_async_payload(self):
+        self.user_in_group('market_refresh_member', '正式成员')
+        self.client.login(username='market_refresh_member', password='pass12345')
+        job = MarketYieldRefreshJob.objects.create(
+            status=MarketYieldRefreshJob.STATUS_RUNNING,
+            message='收益率数据正在更新...',
+            started_at=timezone.now(),
+        )
+
+        with patch('dashboard.views.start_market_yield_refresh', return_value=(job, True)):
+            response = self.client.post(
+                reverse('dashboard:market_yields_refresh'),
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            )
+
+        payload = json.loads(response.content)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['ok'])
+        self.assertTrue(payload['started'])
+        self.assertTrue(payload['refresh']['running'])
+        self.assertIn('marketYieldContent', payload['html'])
+        self.assertIn('正在更新收益率数据', payload['html'])
+
+    def test_market_yield_status_endpoint_returns_shared_refresh_state(self):
+        self.user_in_group('market_status_member', '正式成员')
+        self.client.login(username='market_status_member', password='pass12345')
+        MarketYieldRefreshJob.objects.create(
+            status=MarketYieldRefreshJob.STATUS_FAILED,
+            message='抓取失败',
+            finished_at=timezone.now(),
+        )
+
+        response = self.client.get(reverse('dashboard:market_yields_status'))
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(payload['refresh']['running'])
+        self.assertEqual(payload['refresh']['status'], MarketYieldRefreshJob.STATUS_FAILED)
+        self.assertIn('抓取失败', payload['html'])
 
     def test_daily_check_reports_events_missing_contacts(self):
         today = datetime.now().date()
