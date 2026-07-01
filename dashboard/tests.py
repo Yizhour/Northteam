@@ -861,6 +861,8 @@ class DashboardPageTests(TestCase):
         self.assertContains(page_response, '每个交易日（17：40-17：45更新）')
         self.assertContains(page_response, 'class="panel market-yield-panel market-yield-public-page"')
         self.assertContains(page_response, 'class="market-yield-table"')
+        self.assertContains(page_response, '.yield-cell.up{color:#16a34a}')
+        self.assertContains(page_response, '.yield-cell.down{color:#dc2626}')
         site_css = Path('static/css/site.css').read_text(encoding='utf-8')
         self.assertNotIn('.market-yield-public-page', site_css)
         self.assertNotContains(page_response, '登录')
