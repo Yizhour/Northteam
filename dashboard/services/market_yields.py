@@ -163,35 +163,26 @@ def _fetch_recent_market_yields(min_trading_days, lookback_days, sleep_seconds):
             candidate_dates.append(day)
 
     complete_dates = set(complete_market_yield_dates(limit=lookback_days + 1))
-    complete_candidate_count = sum(1 for day in candidate_dates if day in complete_dates)
-    dates_to_fetch = []
-    for day in candidate_dates:
-        if day in complete_dates:
-            continue
-        dates_to_fetch.append(day)
-        if complete_candidate_count + len(dates_to_fetch) >= min_trading_days:
-            break
-
-    if not dates_to_fetch:
-        latest_dates = [str(day) for day in complete_market_yield_dates(limit=min_trading_days)]
-        return {
-            'ok': True,
-            'message': '收益率数据已是最新。',
-            'saved': 0,
-            'deleted': 0,
-            'dates': latest_dates,
-            'skipped': True,
-        }
-
-    session = make_session()
-    curve_map = query_curve_tree(session)
-    selected = [(target, find_curve_id(curve_map, target)) for target in TARGET_CURVES]
-
+    session = None
+    selected = None
     saved_count = 0
     fetched_dates = []
+    attempted_dates = []
     fetched_at = timezone.now()
 
-    for day in dates_to_fetch:
+    for index, day in enumerate(candidate_dates):
+        latest_dates = complete_market_yield_dates(limit=min_trading_days)
+        if len(latest_dates) >= min_trading_days and not (index == 0 and day not in complete_dates):
+            break
+        if day in complete_dates:
+            continue
+
+        if session is None:
+            session = make_session()
+            curve_map = query_curve_tree(session)
+            selected = [(target, find_curve_id(curve_map, target)) for target in TARGET_CURVES]
+
+        attempted_dates.append(str(day))
         day_rows = []
         for target, curve_id in selected:
             rows = query_yield_curve(session, curve_id, day.isoformat())
@@ -226,23 +217,41 @@ def _fetch_recent_market_yields(min_trading_days, lookback_days, sleep_seconds):
                 )
                 saved_count += 1
 
-        fetched_dates.append(str(day))
+        if (
+            MarketYieldPoint.objects.filter(
+                source=MarketYieldPoint.SOURCE_CHINABOND,
+                trading_date=day,
+            ).count()
+            >= EXPECTED_POINTS_PER_DATE
+        ):
+            complete_dates.add(day)
+            fetched_dates.append(str(day))
 
     latest_dates = [str(day) for day in complete_market_yield_dates(limit=min_trading_days)]
+    if session is None:
+        return {
+            'ok': True,
+            'message': '收益率数据已是最新。',
+            'saved': 0,
+            'deleted': 0,
+            'dates': latest_dates,
+            'skipped': True,
+        }
+    if len(latest_dates) >= min_trading_days:
+        deleted_count = prune_old_market_yields()
+        message = '收益率数据已更新。' if fetched_dates else '未抓取到新的交易日数据，已显示最近可用交易日数据。'
+        return {
+            'ok': True,
+            'message': message,
+            'saved': saved_count,
+            'deleted': deleted_count,
+            'dates': latest_dates,
+            'fetched_dates': fetched_dates,
+            'attempted_dates': attempted_dates,
+        }
     if not fetched_dates:
         return {'ok': False, 'message': '未抓取到新的交易日收益率数据。', 'saved': 0, 'dates': latest_dates}
-    if len(latest_dates) < min_trading_days:
-        return {'ok': False, 'message': '收益率数据未补齐最近交易日。', 'saved': saved_count, 'dates': latest_dates}
-
-    deleted_count = prune_old_market_yields()
-    return {
-        'ok': True,
-        'message': '收益率数据已更新。',
-        'saved': saved_count,
-        'deleted': deleted_count,
-        'dates': latest_dates,
-        'fetched_dates': fetched_dates,
-    }
+    return {'ok': False, 'message': '收益率数据未补齐最近交易日。', 'saved': saved_count, 'dates': latest_dates}
 
 
 def complete_market_yield_dates(limit=None):
@@ -292,12 +301,7 @@ def format_change(current, previous):
 
 
 def market_yield_overview():
-    dates = list(
-        MarketYieldPoint.objects.filter(source=MarketYieldPoint.SOURCE_CHINABOND)
-        .order_by('-trading_date')
-        .values_list('trading_date', flat=True)
-        .distinct()[:3]
-    )
+    dates = complete_market_yield_dates(limit=3)
     latest_date = dates[0] if dates else None
     previous_date = dates[1] if len(dates) > 1 else None
     third_date = dates[2] if len(dates) > 2 else None

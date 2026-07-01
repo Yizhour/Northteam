@@ -696,6 +696,53 @@ class DashboardPageTests(TestCase):
         self.assertEqual({date_str for _, date_str in query_calls}, {today.isoformat()})
         self.assertEqual(MarketYieldPoint.objects.filter(trading_date=today).count(), 15)
 
+    def test_market_yield_fetch_continues_when_today_has_no_data(self):
+        from .services.market_yields import TARGET_CURVES, TARGET_MATURITIES, fetch_recent_market_yields
+
+        today = datetime(2026, 7, 1).date()
+        previous_day = today - timedelta(days=1)
+        second_day = today - timedelta(days=2)
+        third_day = today - timedelta(days=5)
+        query_calls = []
+
+        def fake_query_yield_curve(session, curve_id, date_str):
+            query_calls.append((curve_id, date_str))
+            if date_str == today.isoformat():
+                return []
+            return [
+                {
+                    'trading_date': date_str,
+                    'curve_full_name': '',
+                    'maturity_years': maturity_years,
+                    'maturity_label': maturity_label,
+                    'yield_rate': Decimal('2.1000'),
+                }
+                for maturity_years, maturity_label in TARGET_MATURITIES
+            ]
+
+        with patch('dashboard.services.market_yields.timezone.localdate', return_value=today), patch(
+            'dashboard.services.market_yields.make_session', return_value=object()
+        ), patch('dashboard.services.market_yields.query_curve_tree', return_value={}), patch(
+            'dashboard.services.market_yields.find_curve_id', side_effect=lambda curve_map, target: target.code
+        ), patch('dashboard.services.market_yields.query_yield_curve', side_effect=fake_query_yield_curve):
+            result = fetch_recent_market_yields(sleep_seconds=0)
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(
+            result['dates'],
+            [previous_day.isoformat(), second_day.isoformat(), third_day.isoformat()],
+        )
+        self.assertEqual(
+            result['fetched_dates'],
+            [previous_day.isoformat(), second_day.isoformat(), third_day.isoformat()],
+        )
+        self.assertEqual(
+            {date_str for _, date_str in query_calls},
+            {today.isoformat(), previous_day.isoformat(), second_day.isoformat(), third_day.isoformat()},
+        )
+        self.assertFalse(MarketYieldPoint.objects.filter(trading_date=today).exists())
+        self.assertEqual(MarketYieldPoint.objects.filter(trading_date__in=[previous_day, second_day, third_day]).count(), 45)
+
     def test_market_yield_fetch_uses_database_when_recent_dates_are_complete(self):
         from .services.market_yields import fetch_recent_market_yields
 
@@ -713,6 +760,30 @@ class DashboardPageTests(TestCase):
         self.assertTrue(result['skipped'])
         self.assertEqual(result['saved'], 0)
         make_session.assert_not_called()
+
+    def test_market_yield_overview_ignores_incomplete_latest_day(self):
+        today = datetime(2026, 7, 1).date()
+        previous_day = today - timedelta(days=1)
+        second_day = today - timedelta(days=2)
+        third_day = today - timedelta(days=5)
+        self.create_complete_market_yield_day(previous_day, rate='2.1000')
+        self.create_complete_market_yield_day(second_day, rate='2.0000')
+        self.create_complete_market_yield_day(third_day, rate='1.9000')
+        MarketYieldPoint.objects.create(
+            curve_code='treasury',
+            curve_name='Treasury',
+            trading_date=today,
+            maturity_label='1Y',
+            maturity_years=Decimal('1.00'),
+            yield_rate=Decimal('2.2000'),
+        )
+
+        overview = market_yield_overview()
+
+        self.assertEqual(overview['latest_date'], previous_day)
+        self.assertEqual(overview['previous_date'], second_day)
+        self.assertEqual(overview['third_date'], third_day)
+        self.assertNotIn(today, {row['date'] for row in overview['rows']})
 
     def test_market_yield_refresh_service_starts_one_background_job(self):
         from dashboard.services.market_yield_refresh import start_market_yield_refresh
