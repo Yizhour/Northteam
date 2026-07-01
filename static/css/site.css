@@ -576,15 +576,16 @@ h2 {
 
 .yield-cell {
     font-family: "Consolas", "SFMono-Regular", "Microsoft YaHei", monospace;
+    font-size: 13px;
     font-weight: 700;
 }
 
 .yield-cell.up {
-    color: #dc2626;
+    color: #16a34a;
 }
 
 .yield-cell.down {
-    color: #16a34a;
+    color: #dc2626;
 }
 
 .yield-cell.flat,
