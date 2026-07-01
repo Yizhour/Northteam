@@ -6,6 +6,7 @@ from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .api_views import bond_reminder_overview
@@ -44,6 +45,7 @@ def home(request):
             'bond_reminder': bond_reminder_overview(),
             'market_yields': market_yield_overview(),
             'market_yield_refresh': refresh_job_payload(get_refresh_job()),
+            'market_yields_public_url': request.build_absolute_uri(reverse('dashboard:market_yields_public')),
             'common_website_links': CommonWebsite.objects.filter(is_active=True),
             'common_website_admin_items': CommonWebsite.objects.all() if editing_common_websites else [],
             'common_websites_per_row': common_website_setting.cards_per_row,
@@ -263,6 +265,35 @@ def render_market_yields_html(overview, job):
             'market_yields': overview,
             'market_yield_refresh': refresh_job_payload(job),
         },
+    )
+
+
+def render_market_yield_public_content_html(overview):
+    return render_to_string(
+        'dashboard/partials/market_yield_public_content.html',
+        {'market_yields': overview},
+    )
+
+
+def market_yields_public(request):
+    return render(
+        request,
+        'dashboard/market_yields_public.html',
+        {
+            'hide_chrome': True,
+            'market_yields': market_yield_overview(),
+        },
+    )
+
+
+def market_yields_public_status(request):
+    overview = market_yield_overview()
+    return JsonResponse(
+        {
+            'ok': True,
+            'market_yields': overview,
+            'html': render_market_yield_public_content_html(overview),
+        }
     )
 
 

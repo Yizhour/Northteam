@@ -474,7 +474,8 @@ h2 {
 }
 
 .market-refresh-button,
-.market-more-button {
+.market-more-button,
+.market-copy-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -491,7 +492,8 @@ h2 {
 }
 
 .market-refresh-button:hover,
-.market-more-button:hover {
+.market-more-button:hover,
+.market-copy-button:hover {
     background: var(--color-blue-soft);
     border-color: #8db9df;
 }
@@ -501,6 +503,12 @@ h2 {
     background: #f3f6fa;
     border-color: var(--color-line);
     cursor: wait;
+}
+
+.market-copy-button.copied {
+    color: #14532d;
+    background: #dcfce7;
+    border-color: #86efac;
 }
 
 .market-yield-meta {
@@ -591,6 +599,39 @@ h2 {
 .yield-cell.flat,
 .yield-cell.neutral {
     color: var(--color-muted);
+}
+
+.market-yield-public-page {
+    width: min(980px, 100%);
+    margin: 0 auto;
+    padding: 18px;
+    background: #ffffff;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-soft);
+}
+
+.market-yield-public-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-line);
+}
+
+.market-yield-public-header h1 {
+    margin: 0 0 4px;
+    color: var(--color-navy-dark);
+    font-size: 20px;
+}
+
+.market-yield-public-header span {
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .common-sites-panel {

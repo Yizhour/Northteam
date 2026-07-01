@@ -1,0 +1,12 @@
+<div class="market-yield-meta">
+    {% if market_yields.available %}
+        <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
+        <span>最新数据：{{ market_yields.latest_date|date:"Y-m-d" }}</span>
+        <span>每个交易日（17：40-17：45更新）</span>
+    {% else %}
+        <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
+        <span>每个交易日（17：40-17：45更新）</span>
+        <span>暂无数据。</span>
+    {% endif %}
+</div>
+{% include "dashboard/partials/market_yield_table.html" %}

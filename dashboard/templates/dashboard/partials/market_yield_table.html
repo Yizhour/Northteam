@@ -1,0 +1,30 @@
+<div class="market-yield-table-wrap">
+    <table class="market-yield-table">
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>曲线</th>
+                {% for maturity in market_yields.maturities %}
+                    <th>{{ maturity }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in market_yields.rows %}
+                <tr{% if row.is_previous %} class="previous-day"{% endif %}>
+                    {% if row.show_date %}
+                        <td class="market-yield-date" rowspan="{{ row.date_rowspan }}">{{ row.date|date:"m-d" }}</td>
+                    {% endif %}
+                    <th scope="row">{{ row.curve }}</th>
+                    {% for cell in row.cells %}
+                        <td class="yield-cell {{ cell.direction }}">{{ cell.display }}</td>
+                    {% endfor %}
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan='{{ market_yields.maturities|length|add:"2" }}' class="market-yield-empty">暂无收益率数据</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

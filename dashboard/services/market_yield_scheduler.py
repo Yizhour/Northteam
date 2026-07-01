@@ -16,7 +16,7 @@ HEARTBEAT_SECONDS = 10
 MONITOR_SECONDS = 30
 LOOP_SECONDS = 20
 FETCH_WINDOWS = (
-    (datetime_time(5, 40), datetime_time(5, 45)),
+    (datetime_time(17, 40), datetime_time(17, 45)),
 )
 MAX_FETCH_ATTEMPTS = 2
 RETRY_AFTER_FAILURE = timedelta(minutes=10)

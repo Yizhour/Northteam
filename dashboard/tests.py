@@ -344,10 +344,10 @@ class DashboardPageTests(TestCase):
         today = timezone.localdate()
         if today.weekday() >= 5:
             today = today + timedelta(days=7 - today.weekday())
-        before_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=39))
-        in_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=40))
-        before_retry = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=49))
-        retry_time = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=50))
+        before_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=39))
+        in_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=40))
+        before_retry = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=49))
+        retry_time = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=50))
 
         with patch('dashboard.services.market_yield_scheduler.random.randint', return_value=0), patch(
             'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
@@ -506,6 +506,8 @@ class DashboardPageTests(TestCase):
         self.assertContains(response, '常用网站')
         self.assertContains(response, '中债指数')
         self.assertContains(response, 'common-sites-list columns-3')
+        self.assertContains(response, 'id="marketYieldCopyButton"')
+        self.assertContains(response, reverse('dashboard:market_yields_public'))
         self.assertNotContains(response, '进行中项目')
         self.assertNotContains(response, '待处理事项')
         self.assertNotContains(response, '本周新增 2 项')
@@ -843,6 +845,24 @@ class DashboardPageTests(TestCase):
         self.assertFalse(payload['refresh']['running'])
         self.assertEqual(payload['refresh']['status'], MarketYieldRefreshJob.STATUS_FAILED)
         self.assertIn('抓取失败', payload['html'])
+
+    def test_market_yield_public_page_is_available_without_login(self):
+        today = datetime(2026, 7, 1).date()
+        self.create_complete_market_yield_day(today, rate='2.1000')
+
+        page_response = self.client.get(reverse('dashboard:market_yields_public'))
+        status_response = self.client.get(reverse('dashboard:market_yields_public_status'))
+        payload = json.loads(status_response.content)
+
+        self.assertEqual(page_response.status_code, 200)
+        self.assertEqual(status_response.status_code, 200)
+        self.assertContains(page_response, '中债收益率曲线')
+        self.assertContains(page_response, '更多')
+        self.assertContains(page_response, '每个交易日（17：40-17：45更新）')
+        self.assertNotContains(page_response, '登录')
+        self.assertTrue(payload['ok'])
+        self.assertIn('market-yield-table', payload['html'])
+        self.assertIn('每个交易日（17：40-17：45更新）', payload['html'])
 
     def test_daily_check_reports_events_missing_contacts(self):
         today = datetime.now().date()

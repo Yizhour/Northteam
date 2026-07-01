@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}中债收益率曲线{% endblock %}
+
+{% block content %}
+<section class="market-yield-public-page">
+    <div class="market-yield-public-header">
+        <div>
+            <h1>中债收益率曲线</h1>
+            <span>Market Rates</span>
+        </div>
+        <a class="market-more-button" href="https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN" target="_blank" rel="noopener noreferrer">更多</a>
+    </div>
+    <div id="marketYieldPublicContent"
+         data-status-url="{% url 'dashboard:market_yields_public_status' %}">
+        {% include "dashboard/partials/market_yield_public_content.html" %}
+    </div>
+</section>
+<script>
+(function () {
+    var content = document.getElementById('marketYieldPublicContent');
+    if (!content) {
+        return;
+    }
+    var pollTimer = null;
+
+    function schedulePoll() {
+        window.clearTimeout(pollTimer);
+        pollTimer = window.setTimeout(pollStatus, 30000);
+    }
+
+    function pollStatus() {
+        window.fetch(content.dataset.statusUrl, {
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            credentials: 'same-origin'
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('status failed');
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                if (payload && payload.html) {
+                    content.innerHTML = payload.html;
+                }
+                schedulePoll();
+            })
+            .catch(schedulePoll);
+    }
+
+    schedulePoll();
+})();
+</script>
+{% endblock %}
