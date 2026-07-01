@@ -16,7 +16,7 @@ from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.config import BOND_CACHE_FILE
 from tools.bondreminder.app.storage import save_bond_table_from_upload
 
-from .models import CommonWebsite, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint, MarketYieldRefreshJob
+from .models import CommonWebsite, CommonWebsiteSetting, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint, MarketYieldRefreshJob
 from .services.market_yields import market_yield_overview, prune_old_market_yields
 
 
@@ -486,6 +486,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '常用网站')
         self.assertContains(response, '中债指数')
+        self.assertContains(response, 'common-sites-list columns-3')
         self.assertNotContains(response, '进行中项目')
         self.assertNotContains(response, '待处理事项')
         self.assertNotContains(response, '本周新增 2 项')
@@ -495,11 +496,13 @@ class DashboardPageTests(TestCase):
         self.assertNotContains(response, '今日待办')
         self.assertNotContains(response, '系统公告')
         self.assertNotContains(response, 'name="sort_order"')
+        self.assertNotContains(response, '?edit_common_websites=1')
 
     def test_super_admin_can_manage_common_websites(self):
         User.objects.create_superuser('site_admin', 'site@example.com', 'pass12345', first_name='site_admin')
         self.client.login(username='site_admin', password='pass12345')
 
+        page_response = self.client.get(f'{reverse("dashboard:home")}?edit_common_websites=1')
         create_response = self.client.post(
             reverse('dashboard:common_website_create'),
             data={'name': '中债', 'url': 'indices.chinabond.com.cn', 'sort_order': '3', 'is_active': 'on'},
@@ -512,6 +515,8 @@ class DashboardPageTests(TestCase):
         website.refresh_from_db()
         delete_response = self.client.post(reverse('dashboard:common_website_delete', args=[website.id]))
 
+        self.assertContains(page_response, '保存布局')
+        self.assertContains(page_response, 'name="sort_order"')
         self.assertEqual(create_response.status_code, 302)
         self.assertEqual(website.url, 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN')
         self.assertEqual(website.sort_order, 1)
@@ -519,6 +524,21 @@ class DashboardPageTests(TestCase):
         self.assertEqual(update_response.status_code, 302)
         self.assertEqual(delete_response.status_code, 302)
         self.assertFalse(CommonWebsite.objects.filter(id=website.id).exists())
+
+    def test_super_admin_can_set_common_website_cards_per_row_to_five(self):
+        User.objects.create_superuser('layout_admin', 'layout@example.com', 'pass12345', first_name='layout_admin')
+        self.client.login(username='layout_admin', password='pass12345')
+        CommonWebsite.objects.create(name='中债指数', url='https://indices.chinabond.com.cn/', sort_order=1)
+
+        update_response = self.client.post(
+            reverse('dashboard:common_website_layout_update'),
+            data={'cards_per_row': '5'},
+        )
+        page_response = self.client.get(reverse('dashboard:home'))
+
+        self.assertEqual(update_response.status_code, 302)
+        self.assertEqual(CommonWebsiteSetting.objects.get(key='default').cards_per_row, 5)
+        self.assertContains(page_response, 'common-sites-list columns-5')
 
     def test_member_cannot_manage_common_websites(self):
         self.user_in_group('site_member', '正式成员')

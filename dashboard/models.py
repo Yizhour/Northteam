@@ -271,3 +271,24 @@ class CommonWebsite(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CommonWebsiteSetting(models.Model):
+    """Layout settings for common website shortcuts."""
+
+    key = models.CharField(max_length=40, unique=True, default='default')
+    cards_per_row = models.PositiveSmallIntegerField('每行卡片数', default=3)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        ordering = ['key']
+        verbose_name = '常用网站设置'
+        verbose_name_plural = '常用网站设置'
+
+    def save(self, *args, **kwargs):
+        if self.cards_per_row not in (2, 3, 4, 5):
+            self.cards_per_row = 3
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'常用网站每行 {self.cards_per_row} 个'

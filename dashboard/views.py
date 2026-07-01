@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 
 from .api_views import bond_reminder_overview
 from .decorators import feature_required
-from .models import CommonWebsite
+from .models import CommonWebsite, CommonWebsiteSetting
 from .permissions import features_for_user, is_super_admin
 from .services.market_yield_refresh import get_refresh_job, refresh_job_payload, start_market_yield_refresh
 from .services.market_yields import market_yield_overview
@@ -35,6 +35,8 @@ def base_context(request, active_nav):
 def home(request):
     """Render the first dashboard page for the internal OA-style workspace."""
     can_manage_common_websites = is_super_admin(request.user)
+    common_website_setting = get_common_website_setting()
+    editing_common_websites = can_manage_common_websites and request.GET.get('edit_common_websites') == '1'
     context = base_context(request, '概况')
     context.update(
         {
@@ -42,11 +44,25 @@ def home(request):
             'market_yields': market_yield_overview(),
             'market_yield_refresh': refresh_job_payload(get_refresh_job()),
             'common_website_links': CommonWebsite.objects.filter(is_active=True),
-            'common_website_admin_items': CommonWebsite.objects.all() if can_manage_common_websites else [],
+            'common_website_admin_items': CommonWebsite.objects.all() if editing_common_websites else [],
+            'common_websites_per_row': common_website_setting.cards_per_row,
             'can_manage_common_websites': can_manage_common_websites,
+            'editing_common_websites': editing_common_websites,
         }
     )
     return render(request, 'dashboard/home.html', context)
+
+
+def get_common_website_setting():
+    setting, _ = CommonWebsiteSetting.objects.get_or_create(key='default')
+    if setting.cards_per_row not in (2, 3, 4, 5):
+        setting.cards_per_row = 3
+        setting.save(update_fields=['cards_per_row', 'updated_at'])
+    return setting
+
+
+def _redirect_common_website_edit():
+    return redirect('/?edit_common_websites=1')
 
 
 def _require_common_website_admin(request):
@@ -86,7 +102,7 @@ def common_website_create(request):
         messages.success(request, '常用网站已添加。')
     except ValidationError as exc:
         messages.error(request, '; '.join(exc.messages))
-    return redirect('dashboard:home')
+    return _redirect_common_website_edit()
 
 
 @require_POST
@@ -102,7 +118,7 @@ def common_website_update(request, website_id):
         messages.success(request, '常用网站已更新。')
     except ValidationError as exc:
         messages.error(request, '; '.join(exc.messages))
-    return redirect('dashboard:home')
+    return _redirect_common_website_edit()
 
 
 @require_POST
@@ -111,7 +127,24 @@ def common_website_delete(request, website_id):
     _require_common_website_admin(request)
     get_object_or_404(CommonWebsite, pk=website_id).delete()
     messages.success(request, '常用网站已删除。')
-    return redirect('dashboard:home')
+    return _redirect_common_website_edit()
+
+
+@require_POST
+@feature_required('overview')
+def common_website_layout_update(request):
+    _require_common_website_admin(request)
+    try:
+        cards_per_row = int(request.POST.get('cards_per_row') or 3)
+    except (TypeError, ValueError):
+        cards_per_row = 3
+    if cards_per_row not in (2, 3, 4, 5):
+        cards_per_row = 3
+    setting = get_common_website_setting()
+    setting.cards_per_row = cards_per_row
+    setting.save(update_fields=['cards_per_row', 'updated_at'])
+    messages.success(request, '常用网站布局已更新。')
+    return _redirect_common_website_edit()
 
 
 @require_POST

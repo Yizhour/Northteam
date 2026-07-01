@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-.page-messages{display:grid;gap:8px;margin-bottom:18px}.market-yield-panel .page-messages{margin:-6px 0 12px}.page-message{padding:10px 12px;border-radius:6px;font-size:13px;font-weight:700}.page-message.success{color:#14532d;background:#dcfce7;border:1px solid #86efac}.page-message.error{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.page-message.info{color:#1d4f7a;background:#e8f1fa;border:1px solid #b8d5ef}.market-yield-panel{margin-bottom:22px;padding:20px}.market-yield-heading{align-items:center}.market-yield-actions{display:flex;align-items:center;gap:8px}.market-yield-heading form{margin:0}.market-refresh-button,.market-more-button{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:700}.market-refresh-button:hover,.market-more-button:hover{background:#e8f1fa;border-color:#8db9df}.market-refresh-button:disabled{color:#637083;background:#f3f6fa;border-color:#d8e1ec;cursor:wait}.market-yield-meta{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 12px;color:#637083;font-size:12px}.market-yield-table-wrap{overflow-x:auto;border:1px solid #d8e1ec;border-radius:8px}.market-yield-table{width:100%;min-width:680px;border-collapse:collapse;background:#fff;font-size:12px}.market-yield-table th,.market-yield-table td{padding:9px 10px;border-bottom:1px solid #d8e1ec;text-align:right;white-space:nowrap}.market-yield-table thead th{color:#334155;background:#eef3f8;font-size:12px;letter-spacing:0}.market-yield-table th:first-child,.market-yield-table th:nth-child(2){text-align:left}.market-yield-table tbody th{color:#12345a;font-weight:700}.market-yield-table tbody tr.previous-day{background:#fafcff}.market-yield-date{width:74px;color:#12345a;background:#eef3f8;font-weight:700;text-align:left!important;vertical-align:middle}.market-yield-table tbody tr:last-child th,.market-yield-table tbody tr:last-child td{border-bottom:0}.market-yield-empty{color:#637083;text-align:center!important}.yield-cell{font-family:"Consolas","SFMono-Regular","Microsoft YaHei",monospace;font-weight:700}.yield-cell.up{color:#dc2626}.yield-cell.down{color:#16a34a}.yield-cell.flat,.yield-cell.neutral{color:#637083}.common-sites-panel{margin-top:22px}.common-sites-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.common-site-link{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;padding:10px 12px;color:#12345a;background:#fbfcfe;border:1px solid #d8e1ec;border-radius:6px;font-size:14px;font-weight:700}.common-site-link:hover{background:#e8f1fa;border-color:#8db9df}.common-site-url{overflow:hidden;color:#637083;font-size:12px;font-weight:400;text-overflow:ellipsis;white-space:nowrap}.common-sites-admin{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid #d8e1ec}.common-site-form,.common-site-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(220px,1.5fr) 80px 72px auto;gap:8px;align-items:center}.common-site-form input,.common-site-row input{width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-check{display:flex;align-items:center;gap:6px;color:#637083;font-size:13px;font-weight:700}.common-site-check input{width:auto}.common-site-actions{display:flex;gap:8px}.common-site-empty{padding:14px;color:#637083;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;text-align:center}@media(max-width:900px){.common-site-form,.common-site-row{grid-template-columns:1fr}}
+.page-messages{display:grid;gap:8px;margin-bottom:18px}.market-yield-panel .page-messages{margin:-6px 0 12px}.page-message{padding:10px 12px;border-radius:6px;font-size:13px;font-weight:700}.page-message.success{color:#14532d;background:#dcfce7;border:1px solid #86efac}.page-message.error{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.page-message.info{color:#1d4f7a;background:#e8f1fa;border:1px solid #b8d5ef}.market-yield-panel{margin-bottom:22px;padding:20px}.market-yield-heading{align-items:center}.market-yield-actions{display:flex;align-items:center;gap:8px}.market-yield-heading form{margin:0}.market-refresh-button,.market-more-button{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:700}.market-refresh-button:hover,.market-more-button:hover{background:#e8f1fa;border-color:#8db9df}.market-refresh-button:disabled{color:#637083;background:#f3f6fa;border-color:#d8e1ec;cursor:wait}.market-yield-meta{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 12px;color:#637083;font-size:12px}.market-yield-table-wrap{overflow-x:auto;border:1px solid #d8e1ec;border-radius:8px}.market-yield-table{width:100%;min-width:680px;border-collapse:collapse;background:#fff;font-size:12px}.market-yield-table th,.market-yield-table td{padding:9px 10px;border-bottom:1px solid #d8e1ec;text-align:right;white-space:nowrap}.market-yield-table thead th{color:#334155;background:#eef3f8;font-size:12px;letter-spacing:0}.market-yield-table th:first-child,.market-yield-table th:nth-child(2){text-align:left}.market-yield-table tbody th{color:#12345a;font-weight:700}.market-yield-table tbody tr.previous-day{background:#fafcff}.market-yield-date{width:74px;color:#12345a;background:#eef3f8;font-weight:700;text-align:left!important;vertical-align:middle}.market-yield-table tbody tr:last-child th,.market-yield-table tbody tr:last-child td{border-bottom:0}.market-yield-empty{color:#637083;text-align:center!important}.yield-cell{font-family:"Consolas","SFMono-Regular","Microsoft YaHei",monospace;font-weight:700}.yield-cell.up{color:#dc2626}.yield-cell.down{color:#16a34a}.yield-cell.flat,.yield-cell.neutral{color:#637083}.common-sites-panel{margin-top:22px}.common-sites-header-actions{display:flex;align-items:center;gap:8px}.common-sites-list{display:grid;gap:12px}.common-sites-list.columns-2{grid-template-columns:repeat(2,minmax(0,1fr))}.common-sites-list.columns-3{grid-template-columns:repeat(3,minmax(0,1fr))}.common-sites-list.columns-4{grid-template-columns:repeat(4,minmax(0,1fr))}.common-sites-list.columns-5{grid-template-columns:repeat(5,minmax(0,1fr))}.common-site-link{display:grid;align-content:center;gap:6px;min-height:78px;padding:14px 16px;color:#12345a;background:#fbfcfe;border:1px solid #d8e1ec;border-radius:6px;font-size:15px;font-weight:700}.common-site-link:hover{background:#e8f1fa;border-color:#8db9df}.common-site-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.common-site-url{overflow:hidden;color:#637083;font-size:12px;font-weight:400;text-overflow:ellipsis;white-space:nowrap}.common-site-edit-link{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;font-size:13px;font-weight:700}.common-site-edit-link:hover{background:#e8f1fa;border-color:#8db9df}.common-sites-admin{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid #d8e1ec}.common-site-layout-form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.common-site-layout-form label{display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700}.common-site-layout-form select{padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-form,.common-site-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(220px,1.5fr) 80px 72px auto;gap:8px;align-items:center}.common-site-form input,.common-site-row input{width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-check{display:flex;align-items:center;gap:6px;color:#637083;font-size:13px;font-weight:700}.common-site-check input{width:auto}.common-site-actions{display:flex;gap:8px}.common-site-empty{padding:14px;color:#637083;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;text-align:center}@media(max-width:900px){.common-sites-list.columns-2,.common-sites-list.columns-3,.common-sites-list.columns-4,.common-sites-list.columns-5{grid-template-columns:1fr}.common-site-form,.common-site-row{grid-template-columns:1fr}}
 </style>
 <section class="page-heading">
     <p class="eyebrow">NorthTeam2</p>
@@ -117,8 +117,19 @@
 
 <section class="panel common-sites-panel" aria-label="常用网站">
     <div class="panel-heading">
-        <h2>常用网站</h2>
-        <span>Links</span>
+        <div>
+            <h2>常用网站</h2>
+            <span>Links</span>
+        </div>
+        {% if can_manage_common_websites %}
+            <div class="common-sites-header-actions">
+                {% if editing_common_websites %}
+                    <a class="common-site-edit-link" href="{% url 'dashboard:home' %}">完成</a>
+                {% else %}
+                    <a class="common-site-edit-link" href="{% url 'dashboard:home' %}?edit_common_websites=1">编辑</a>
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
     {% if messages %}
         <div class="page-messages">
@@ -128,10 +139,10 @@
         </div>
     {% endif %}
     {% if common_website_links %}
-        <div class="common-sites-list">
+        <div class="common-sites-list columns-{{ common_websites_per_row }}">
             {% for website in common_website_links %}
                 <a class="common-site-link" href="{{ website.url }}" target="_blank" rel="noopener noreferrer">
-                    <span>{{ website.name }}</span>
+                    <span class="common-site-name">{{ website.name }}</span>
                     <span class="common-site-url">{{ website.url }}</span>
                 </a>
             {% endfor %}
@@ -140,8 +151,22 @@
         <div class="common-site-empty">暂无常用网站。</div>
     {% endif %}
 
-    {% if can_manage_common_websites %}
+    {% if editing_common_websites %}
         <div class="common-sites-admin">
+            <form class="common-site-layout-form" method="post" action="{% url 'dashboard:common_website_layout_update' %}">
+                {% csrf_token %}
+                <label>
+                    每行显示
+                    <select name="cards_per_row">
+                        <option value="2"{% if common_websites_per_row == 2 %} selected{% endif %}>2 个</option>
+                        <option value="3"{% if common_websites_per_row == 3 %} selected{% endif %}>3 个</option>
+                        <option value="4"{% if common_websites_per_row == 4 %} selected{% endif %}>4 个</option>
+                        <option value="5"{% if common_websites_per_row == 5 %} selected{% endif %}>5 个</option>
+                    </select>
+                </label>
+                <button class="plain-button" type="submit">保存布局</button>
+            </form>
+
             <form class="common-site-form" method="post" action="{% url 'dashboard:common_website_create' %}">
                 {% csrf_token %}
                 <input type="text" name="name" placeholder="网站名" required>

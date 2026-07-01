@@ -4,7 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import CommonWebsite, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint
+from .models import CommonWebsite, CommonWebsiteSetting, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint
 
 
 def display_staff_name(user):
@@ -115,3 +115,8 @@ class CommonWebsiteAdmin(admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('name', 'url')
     ordering = ('sort_order', 'name', 'id')
+
+
+@admin.register(CommonWebsiteSetting)
+class CommonWebsiteSettingAdmin(admin.ModelAdmin):
+    list_display = ('key', 'cards_per_row', 'updated_at')
