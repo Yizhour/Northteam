@@ -18,6 +18,8 @@ LOOP_SECONDS = 20
 FETCH_WINDOWS = (
     (datetime_time(5, 40), datetime_time(5, 45)),
 )
+MAX_FETCH_ATTEMPTS = 2
+RETRY_AFTER_FAILURE = timedelta(minutes=10)
 
 
 class MarketYieldScheduler:
@@ -87,24 +89,24 @@ class MarketYieldScheduler:
             self._attempt_date = today
             self._attempt_index = 0
             self._target_run_at = None
-        if self._attempt_index >= len(FETCH_WINDOWS):
+        if self._attempt_index >= MAX_FETCH_ATTEMPTS:
             return
         if self._target_run_at is None or self._target_run_at.date() != today:
-            self._target_run_at = self._random_time_in_window(today, self._attempt_index)
+            self._target_run_at = (
+                self._random_time_in_window(today)
+                if self._attempt_index == 0
+                else now + RETRY_AFTER_FAILURE
+            )
         if now >= self._target_run_at:
             result = run_market_yield_refresh(trigger='auto', requested_by='scheduler')
             if result.get('ok'):
                 self._run_date = today
                 return
             self._attempt_index += 1
-            self._target_run_at = (
-                self._random_time_in_window(today, self._attempt_index)
-                if self._attempt_index < len(FETCH_WINDOWS)
-                else None
-            )
+            self._target_run_at = now + RETRY_AFTER_FAILURE if self._attempt_index < MAX_FETCH_ATTEMPTS else None
 
-    def _random_time_in_window(self, day, window_index):
-        start_time, end_time = FETCH_WINDOWS[window_index]
+    def _random_time_in_window(self, day):
+        start_time, end_time = FETCH_WINDOWS[0]
         start_at = timezone.make_aware(datetime.combine(day, start_time))
         end_at = timezone.make_aware(datetime.combine(day, end_time))
         seconds = max(0, int((end_at - start_at).total_seconds()))

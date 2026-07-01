@@ -337,7 +337,7 @@ class DashboardPageTests(TestCase):
         finally:
             schedule.clear()
 
-    def test_market_yield_scheduler_runs_in_morning_window(self):
+    def test_market_yield_scheduler_retries_ten_minutes_after_failure(self):
         from dashboard.services.market_yield_scheduler import MarketYieldScheduler
 
         service = MarketYieldScheduler()
@@ -346,18 +346,23 @@ class DashboardPageTests(TestCase):
             today = today + timedelta(days=7 - today.weekday())
         before_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=39))
         in_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=40))
-        after_success = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=45))
+        before_retry = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=49))
+        retry_time = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=5, minute=50))
 
         with patch('dashboard.services.market_yield_scheduler.random.randint', return_value=0), patch(
             'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
-            return_value={'ok': True},
+            side_effect=[{'ok': False}, {'ok': True}],
         ) as fetch_mock:
-            with patch('dashboard.services.market_yield_scheduler.timezone.localtime', side_effect=[before_window, in_window, after_success]):
+            with patch(
+                'dashboard.services.market_yield_scheduler.timezone.localtime',
+                side_effect=[before_window, in_window, before_retry, retry_time],
+            ):
+                service._run_if_due()
                 service._run_if_due()
                 service._run_if_due()
                 service._run_if_due()
 
-        self.assertEqual(fetch_mock.call_count, 1)
+        self.assertEqual(fetch_mock.call_count, 2)
         self.assertEqual(service._run_date, today)
 
     def test_super_admin_can_open_access_control_and_admin(self):

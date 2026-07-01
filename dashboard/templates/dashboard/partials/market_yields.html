@@ -13,10 +13,9 @@
         {% if market_yields.available %}
             <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
             <span>最新数据：{{ market_yields.latest_date|date:"Y-m-d" }}</span>
-            <span>（每天 5:40-5:45 自动更新，也可手动点击更新）</span>
         {% else %}
             <span>今日：{{ market_yields.today|date:"Y-m-d" }}</span>
-            <span>暂无数据，点击更新后展示。（每天 5:40-5:45 自动更新）</span>
+            <span>暂无数据，点击更新后展示。</span>
         {% endif %}
     </div>
     <div class="market-yield-table-wrap">
