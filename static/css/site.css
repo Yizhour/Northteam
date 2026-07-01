@@ -604,34 +604,6 @@ h2 {
 .market-yield-public-page {
     width: min(980px, 100%);
     margin: 0 auto;
-    padding: 18px;
-    background: #ffffff;
-    border: 1px solid var(--color-line);
-    border-radius: 8px;
-    box-shadow: var(--shadow-soft);
-}
-
-.market-yield-public-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--color-line);
-}
-
-.market-yield-public-header h1 {
-    margin: 0 0 4px;
-    color: var(--color-navy-dark);
-    font-size: 20px;
-}
-
-.market-yield-public-header span {
-    color: var(--color-muted);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
 }
 
 .common-sites-panel {

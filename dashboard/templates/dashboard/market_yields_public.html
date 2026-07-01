@@ -3,13 +3,15 @@
 {% block title %}中债收益率曲线{% endblock %}
 
 {% block content %}
-<section class="market-yield-public-page">
-    <div class="market-yield-public-header">
+<section class="panel market-yield-panel market-yield-public-page">
+    <div class="panel-heading market-yield-heading">
         <div>
-            <h1>中债收益率曲线</h1>
+            <h2>中债收益率曲线</h2>
             <span>Market Rates</span>
         </div>
-        <a class="market-more-button" href="https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN" target="_blank" rel="noopener noreferrer">更多</a>
+        <div class="market-yield-actions">
+            <a class="market-more-button" href="https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN" target="_blank" rel="noopener noreferrer">更多</a>
+        </div>
     </div>
     <div id="marketYieldPublicContent"
          data-status-url="{% url 'dashboard:market_yields_public_status' %}">
