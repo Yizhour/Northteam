@@ -45,6 +45,20 @@ class DashboardPageTests(TestCase):
     def weekend_day(self):
         return (datetime.fromisoformat(self.schedule_day()).date() + timedelta(days=5)).isoformat()
 
+    def create_complete_market_yield_day(self, day, rate='2.0000'):
+        from .services.market_yields import TARGET_CURVES, TARGET_MATURITIES
+
+        for target in TARGET_CURVES:
+            for maturity_years, maturity_label in TARGET_MATURITIES:
+                MarketYieldPoint.objects.create(
+                    curve_code=target.code,
+                    curve_name=target.name,
+                    trading_date=day,
+                    maturity_label=maturity_label,
+                    maturity_years=maturity_years,
+                    yield_rate=Decimal(rate),
+                )
+
     def test_default_permissions_are_seeded(self):
         self.assertTrue(Group.objects.filter(name='超级管理员').exists())
         self.assertTrue(Group.objects.filter(name='团队负责人').exists())
@@ -645,6 +659,60 @@ class DashboardPageTests(TestCase):
         self.assertFalse(
             MarketYieldPoint.objects.filter(trading_date=latest_day - timedelta(days=30)).exists()
         )
+
+    def test_market_yield_fetch_skips_complete_existing_previous_dates(self):
+        from .services.market_yields import TARGET_CURVES, TARGET_MATURITIES, fetch_recent_market_yields
+
+        today = datetime(2026, 7, 1).date()
+        previous_day = today - timedelta(days=1)
+        third_day = today - timedelta(days=2)
+        self.create_complete_market_yield_day(previous_day)
+        self.create_complete_market_yield_day(third_day)
+        query_calls = []
+
+        def fake_query_yield_curve(session, curve_id, date_str):
+            query_calls.append((curve_id, date_str))
+            return [
+                {
+                    'trading_date': date_str,
+                    'curve_full_name': '',
+                    'maturity_years': maturity_years,
+                    'maturity_label': maturity_label,
+                    'yield_rate': Decimal('2.1000'),
+                }
+                for maturity_years, maturity_label in TARGET_MATURITIES
+            ]
+
+        with patch('dashboard.services.market_yields.timezone.localdate', return_value=today), patch(
+            'dashboard.services.market_yields.make_session', return_value=object()
+        ), patch('dashboard.services.market_yields.query_curve_tree', return_value={}), patch(
+            'dashboard.services.market_yields.find_curve_id', side_effect=lambda curve_map, target: target.code
+        ), patch('dashboard.services.market_yields.query_yield_curve', side_effect=fake_query_yield_curve):
+            result = fetch_recent_market_yields(sleep_seconds=0)
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['fetched_dates'], [today.isoformat()])
+        self.assertEqual(len(query_calls), len(TARGET_CURVES))
+        self.assertEqual({date_str for _, date_str in query_calls}, {today.isoformat()})
+        self.assertEqual(MarketYieldPoint.objects.filter(trading_date=today).count(), 15)
+
+    def test_market_yield_fetch_uses_database_when_recent_dates_are_complete(self):
+        from .services.market_yields import fetch_recent_market_yields
+
+        today = datetime(2026, 7, 1).date()
+        self.create_complete_market_yield_day(today)
+        self.create_complete_market_yield_day(today - timedelta(days=1))
+        self.create_complete_market_yield_day(today - timedelta(days=2))
+
+        with patch('dashboard.services.market_yields.timezone.localdate', return_value=today), patch(
+            'dashboard.services.market_yields.make_session'
+        ) as make_session:
+            result = fetch_recent_market_yields(sleep_seconds=0)
+
+        self.assertTrue(result['ok'])
+        self.assertTrue(result['skipped'])
+        self.assertEqual(result['saved'], 0)
+        make_session.assert_not_called()
 
     def test_market_yield_refresh_service_starts_one_background_job(self):
         from dashboard.services.market_yield_refresh import start_market_yield_refresh

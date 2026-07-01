@@ -5,6 +5,7 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 
 from dashboard.models import MarketYieldPoint
@@ -36,6 +37,7 @@ TARGET_MATURITIES = [
     (Decimal('5.00'), '5Y'),
     (Decimal('10.00'), '10Y'),
 ]
+EXPECTED_POINTS_PER_DATE = len(TARGET_CURVES) * len(TARGET_MATURITIES)
 
 
 def make_session():
@@ -142,7 +144,7 @@ def query_yield_curve(session, curve_id, date_str):
     return rows
 
 
-def fetch_recent_market_yields(min_trading_days=3, lookback_days=14, sleep_seconds=0.25):
+def fetch_recent_market_yields(min_trading_days=3, lookback_days=14, sleep_seconds=0):
     with file_lock('market-yields-fetch', FETCH_LOCK_TTL_SECONDS) as acquired:
         if not acquired:
             return {'ok': False, 'message': '收益率更新正在执行，请稍后再试。', 'saved': 0, 'dates': []}
@@ -153,36 +155,63 @@ def fetch_recent_market_yields(min_trading_days=3, lookback_days=14, sleep_secon
 
 
 def _fetch_recent_market_yields(min_trading_days, lookback_days, sleep_seconds):
+    today = timezone.localdate()
+    candidate_dates = []
+    for offset in range(lookback_days + 1):
+        day = today - timedelta(days=offset)
+        if day.weekday() < 5:
+            candidate_dates.append(day)
+
+    complete_dates = set(complete_market_yield_dates(limit=lookback_days + 1))
+    complete_candidate_count = sum(1 for day in candidate_dates if day in complete_dates)
+    dates_to_fetch = []
+    for day in candidate_dates:
+        if day in complete_dates:
+            continue
+        dates_to_fetch.append(day)
+        if complete_candidate_count + len(dates_to_fetch) >= min_trading_days:
+            break
+
+    if not dates_to_fetch:
+        latest_dates = [str(day) for day in complete_market_yield_dates(limit=min_trading_days)]
+        return {
+            'ok': True,
+            'message': '收益率数据已是最新。',
+            'saved': 0,
+            'deleted': 0,
+            'dates': latest_dates,
+            'skipped': True,
+        }
+
     session = make_session()
     curve_map = query_curve_tree(session)
     selected = [(target, find_curve_id(curve_map, target)) for target in TARGET_CURVES]
 
-    today = timezone.localdate()
     saved_count = 0
-    trading_dates = []
+    fetched_dates = []
     fetched_at = timezone.now()
 
-    for offset in range(lookback_days + 1):
-        day = today - timedelta(days=offset)
-        if day.weekday() >= 5:
-            continue
+    for day in dates_to_fetch:
         day_rows = []
         for target, curve_id in selected:
             rows = query_yield_curve(session, curve_id, day.isoformat())
             for row in rows:
+                if row['trading_date'] != day.isoformat():
+                    continue
                 row['curve_code'] = target.code
                 row['curve_name'] = target.name
                 if not row['curve_full_name']:
                     row['curve_full_name'] = target.full_name
-            day_rows.extend(rows)
-            time.sleep(sleep_seconds)
+                day_rows.append(row)
+            if sleep_seconds:
+                time.sleep(sleep_seconds)
 
         if not day_rows:
             continue
 
         with transaction.atomic():
             for row in day_rows:
-                point, _ = MarketYieldPoint.objects.update_or_create(
+                MarketYieldPoint.objects.update_or_create(
                     source=MarketYieldPoint.SOURCE_CHINABOND,
                     curve_code=row['curve_code'],
                     trading_date=row['trading_date'],
@@ -197,14 +226,13 @@ def _fetch_recent_market_yields(min_trading_days, lookback_days, sleep_seconds):
                 )
                 saved_count += 1
 
-        date_key = str(day)
-        if date_key not in trading_dates:
-            trading_dates.append(date_key)
-        if len(trading_dates) >= min_trading_days:
-            break
+        fetched_dates.append(str(day))
 
-    if not trading_dates:
-        return {'ok': False, 'message': '未抓取到最近交易日收益率数据。', 'saved': 0, 'dates': []}
+    latest_dates = [str(day) for day in complete_market_yield_dates(limit=min_trading_days)]
+    if not fetched_dates:
+        return {'ok': False, 'message': '未抓取到新的交易日收益率数据。', 'saved': 0, 'dates': latest_dates}
+    if len(latest_dates) < min_trading_days:
+        return {'ok': False, 'message': '收益率数据未补齐最近交易日。', 'saved': saved_count, 'dates': latest_dates}
 
     deleted_count = prune_old_market_yields()
     return {
@@ -212,8 +240,23 @@ def _fetch_recent_market_yields(min_trading_days, lookback_days, sleep_seconds):
         'message': '收益率数据已更新。',
         'saved': saved_count,
         'deleted': deleted_count,
-        'dates': trading_dates,
+        'dates': latest_dates,
+        'fetched_dates': fetched_dates,
     }
+
+
+def complete_market_yield_dates(limit=None):
+    queryset = (
+        MarketYieldPoint.objects.filter(source=MarketYieldPoint.SOURCE_CHINABOND)
+        .values('trading_date')
+        .annotate(point_count=Count('id'))
+        .filter(point_count__gte=EXPECTED_POINTS_PER_DATE)
+        .order_by('-trading_date')
+        .values_list('trading_date', flat=True)
+    )
+    if limit is not None:
+        queryset = queryset[:limit]
+    return list(queryset)
 
 
 def prune_old_market_yields(retention_trading_days=RETENTION_TRADING_DAYS):
