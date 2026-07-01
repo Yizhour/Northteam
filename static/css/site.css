@@ -601,11 +601,6 @@ h2 {
     color: var(--color-muted);
 }
 
-.market-yield-public-page {
-    width: min(980px, 100%);
-    margin: 0 auto;
-}
-
 .common-sites-panel {
     margin-top: 22px;
 }
