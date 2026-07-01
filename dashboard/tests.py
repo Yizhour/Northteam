@@ -861,6 +861,7 @@ class DashboardPageTests(TestCase):
         self.assertContains(page_response, '每个交易日（17：40-17：45更新）')
         self.assertNotContains(page_response, '登录')
         self.assertTrue(payload['ok'])
+        self.assertIn('marketYieldContent', payload['html'])
         self.assertIn('market-yield-table', payload['html'])
         self.assertIn('每个交易日（17：40-17：45更新）', payload['html'])
 

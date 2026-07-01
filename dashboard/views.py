@@ -268,31 +268,27 @@ def render_market_yields_html(overview, job):
     )
 
 
-def render_market_yield_public_content_html(overview):
-    return render_to_string(
-        'dashboard/partials/market_yield_public_content.html',
-        {'market_yields': overview},
-    )
-
-
 def market_yields_public(request):
+    job = get_refresh_job()
     return render(
         request,
         'dashboard/market_yields_public.html',
         {
             'hide_chrome': True,
             'market_yields': market_yield_overview(),
+            'market_yield_refresh': refresh_job_payload(job),
         },
     )
 
 
 def market_yields_public_status(request):
+    job = get_refresh_job()
     overview = market_yield_overview()
     return JsonResponse(
         {
             'ok': True,
             'market_yields': overview,
-            'html': render_market_yield_public_content_html(overview),
+            'html': render_market_yields_html(overview, job),
         }
     )
 
