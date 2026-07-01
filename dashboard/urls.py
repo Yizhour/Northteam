@@ -22,4 +22,5 @@ urlpatterns = [
     path('common-websites/<int:website_id>/update/', views.common_website_update, name='common_website_update'),
     path('common-websites/<int:website_id>/delete/', views.common_website_delete, name='common_website_delete'),
     path('common-websites/layout/', views.common_website_layout_update, name='common_website_layout_update'),
+    path('common-websites/save/', views.common_website_bulk_update, name='common_website_bulk_update'),
 ]

@@ -2,6 +2,7 @@ from django.contrib.staticfiles import finders
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import URLValidator
+from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -70,16 +71,15 @@ def _require_common_website_admin(request):
         raise PermissionDenied
 
 
-def _clean_common_website_payload(post_data):
-    name = (post_data.get('name') or '').strip()
-    url = (post_data.get('url') or '').strip()
+def _clean_common_website_values(name, url, sort_order, is_active):
+    name = (name or '').strip()
+    url = (url or '').strip()
     if url and '://' not in url:
         url = f'https://{url}'
     try:
-        sort_order = int(post_data.get('sort_order') or 100)
+        sort_order = int(sort_order or 100)
     except (TypeError, ValueError):
         sort_order = 100
-    is_active = post_data.get('is_active') == 'on'
     if not name:
         raise ValidationError('网站名不能为空。')
     if not url:
@@ -91,6 +91,15 @@ def _clean_common_website_payload(post_data):
         'sort_order': max(0, sort_order),
         'is_active': is_active,
     }
+
+
+def _clean_common_website_payload(post_data):
+    return _clean_common_website_values(
+        post_data.get('name'),
+        post_data.get('url'),
+        post_data.get('sort_order'),
+        post_data.get('is_active') == 'on',
+    )
 
 
 @require_POST
@@ -144,6 +153,76 @@ def common_website_layout_update(request):
     setting.cards_per_row = cards_per_row
     setting.save(update_fields=['cards_per_row', 'updated_at'])
     messages.success(request, '常用网站布局已更新。')
+    return _redirect_common_website_edit()
+
+
+@require_POST
+@feature_required('overview')
+def common_website_bulk_update(request):
+    _require_common_website_admin(request)
+    try:
+        cards_per_row = int(request.POST.get('cards_per_row') or 3)
+    except (TypeError, ValueError):
+        cards_per_row = 3
+    if cards_per_row not in (2, 3, 4, 5):
+        cards_per_row = 3
+
+    errors = []
+    updates = []
+    deletes = []
+    creates = []
+
+    for raw_id in request.POST.getlist('website_id'):
+        try:
+            website_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if request.POST.get(f'delete_{website_id}') == 'on':
+            deletes.append(website_id)
+            continue
+        try:
+            payload = _clean_common_website_values(
+                request.POST.get(f'name_{website_id}'),
+                request.POST.get(f'url_{website_id}'),
+                request.POST.get(f'sort_order_{website_id}'),
+                request.POST.get(f'is_active_{website_id}') == 'on',
+            )
+            updates.append((website_id, payload))
+        except ValidationError as exc:
+            errors.extend(exc.messages)
+
+    new_name = (request.POST.get('new_name') or '').strip()
+    new_url = (request.POST.get('new_url') or '').strip()
+    if new_name or new_url:
+        try:
+            creates.append(
+                _clean_common_website_values(
+                    new_name,
+                    new_url,
+                    request.POST.get('new_sort_order'),
+                    request.POST.get('new_is_active') == 'on',
+                )
+            )
+        except ValidationError as exc:
+            errors.extend(exc.messages)
+
+    if errors:
+        messages.error(request, '; '.join(errors))
+        return _redirect_common_website_edit()
+
+    with transaction.atomic():
+        setting = get_common_website_setting()
+        setting.cards_per_row = cards_per_row
+        setting.save(update_fields=['cards_per_row', 'updated_at'])
+
+        if deletes:
+            CommonWebsite.objects.filter(pk__in=deletes).delete()
+        for website_id, payload in updates:
+            CommonWebsite.objects.filter(pk=website_id).update(**payload)
+        for payload in creates:
+            CommonWebsite.objects.create(**payload)
+
+    messages.success(request, '常用网站已统一保存。')
     return _redirect_common_website_edit()
 
 

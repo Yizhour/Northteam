@@ -674,6 +674,9 @@ h2 {
 .common-site-actions {
     display: flex;
     gap: 8px;
+    color: var(--color-muted);
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .common-site-empty {
@@ -745,6 +748,11 @@ h2 {
     border-color: #8db9df;
 }
 
+.common-sites-bulk-form {
+    display: grid;
+    gap: 12px;
+}
+
 .common-site-layout-form {
     display: flex;
     align-items: center;
@@ -767,6 +775,10 @@ h2 {
     border-radius: 6px;
     font: inherit;
     font-size: 13px;
+}
+
+.common-site-check.danger-check {
+    color: #991b1b;
 }
 
 .bond-reminder-panel {

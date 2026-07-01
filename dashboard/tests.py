@@ -501,29 +501,39 @@ class DashboardPageTests(TestCase):
     def test_super_admin_can_manage_common_websites(self):
         User.objects.create_superuser('site_admin', 'site@example.com', 'pass12345', first_name='site_admin')
         self.client.login(username='site_admin', password='pass12345')
+        keep_site = CommonWebsite.objects.create(name='中债', url='https://indices.chinabond.com.cn/', sort_order=3)
+        delete_site = CommonWebsite.objects.create(name='删除对象', url='https://example.com/', sort_order=4)
 
         page_response = self.client.get(f'{reverse("dashboard:home")}?edit_common_websites=1')
-        create_response = self.client.post(
-            reverse('dashboard:common_website_create'),
-            data={'name': '中债', 'url': 'indices.chinabond.com.cn', 'sort_order': '3', 'is_active': 'on'},
+        save_response = self.client.post(
+            reverse('dashboard:common_website_bulk_update'),
+            data={
+                'cards_per_row': '4',
+                'website_id': [str(keep_site.id), str(delete_site.id)],
+                f'name_{keep_site.id}': '中债收益率',
+                f'url_{keep_site.id}': 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN',
+                f'sort_order_{keep_site.id}': '1',
+                f'name_{delete_site.id}': delete_site.name,
+                f'url_{delete_site.id}': delete_site.url,
+                f'sort_order_{delete_site.id}': str(delete_site.sort_order),
+                f'delete_{delete_site.id}': 'on',
+                'new_name': '交易所',
+                'new_url': 'www.sse.com.cn',
+                'new_sort_order': '2',
+                'new_is_active': 'on',
+            },
         )
-        website = CommonWebsite.objects.get(name='中债')
-        update_response = self.client.post(
-            reverse('dashboard:common_website_update', args=[website.id]),
-            data={'name': '中债收益率', 'url': 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN', 'sort_order': '1'},
-        )
-        website.refresh_from_db()
-        delete_response = self.client.post(reverse('dashboard:common_website_delete', args=[website.id]))
+        keep_site.refresh_from_db()
 
-        self.assertContains(page_response, '保存布局')
-        self.assertContains(page_response, 'name="sort_order"')
-        self.assertEqual(create_response.status_code, 302)
-        self.assertEqual(website.url, 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN')
-        self.assertEqual(website.sort_order, 1)
-        self.assertFalse(website.is_active)
-        self.assertEqual(update_response.status_code, 302)
-        self.assertEqual(delete_response.status_code, 302)
-        self.assertFalse(CommonWebsite.objects.filter(id=website.id).exists())
+        self.assertContains(page_response, '统一保存')
+        self.assertContains(page_response, 'name="new_sort_order"')
+        self.assertEqual(save_response.status_code, 302)
+        self.assertEqual(keep_site.url, 'https://indices.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN')
+        self.assertEqual(keep_site.sort_order, 1)
+        self.assertFalse(keep_site.is_active)
+        self.assertFalse(CommonWebsite.objects.filter(id=delete_site.id).exists())
+        self.assertTrue(CommonWebsite.objects.filter(name='交易所', url='https://www.sse.com.cn').exists())
+        self.assertEqual(CommonWebsiteSetting.objects.get(key='default').cards_per_row, 4)
 
     def test_super_admin_can_set_common_website_cards_per_row_to_five(self):
         User.objects.create_superuser('layout_admin', 'layout@example.com', 'pass12345', first_name='layout_admin')
@@ -548,8 +558,13 @@ class DashboardPageTests(TestCase):
             reverse('dashboard:common_website_create'),
             data={'name': 'Nope', 'url': 'https://example.com', 'sort_order': '1', 'is_active': 'on'},
         )
+        bulk_response = self.client.post(
+            reverse('dashboard:common_website_bulk_update'),
+            data={'cards_per_row': '5'},
+        )
 
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(bulk_response.status_code, 403)
         self.assertFalse(CommonWebsite.objects.exists())
 
     def test_overview_requires_login_even_if_anonymous_permission_is_enabled(self):
