@@ -104,6 +104,7 @@ class ManuscriptReminder:
                 "overdue_events": [],
                 "association_warning_events": [],
                 "other_rows": [],
+                "archive_deadline_count": 0,
             }
         if start_date is None or end_date is None:
             start_date, end_date = self.get_week_range()
@@ -133,6 +134,7 @@ class ManuscriptReminder:
                 "association_warning_events": [],
                 "other_rows": [],
                 "archive_count": 0,
+                "archive_deadline_count": 0,
                 "overdue_count": 0,
                 "association_warning_count": 0,
                 "other_count": 0,
@@ -143,6 +145,7 @@ class ManuscriptReminder:
         summary_events_by_row = {}
         seen_summary_rows = set()
         row_display_items = []
+        archive_deadline_count = 0
 
         def summary_for(item, base_event):
             key = str(base_event.get("source_row") or item.get("row_index"))
@@ -191,6 +194,7 @@ class ManuscriptReminder:
             row_display_items.append(base_event)
 
             if archive_date and start_date <= archive_date <= end_date:
+                archive_deadline_count += 1
                 add_summary_type(
                     item,
                     base_event,
@@ -273,6 +277,7 @@ class ManuscriptReminder:
             "association_warning_events": association_warning_events,
             "other_rows": other_rows,
             "archive_count": len(archive_events),
+            "archive_deadline_count": archive_deadline_count,
             "overdue_count": len(overdue_events),
             "association_warning_count": len(association_warning_events),
             "other_count": len(other_rows),

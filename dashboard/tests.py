@@ -266,6 +266,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(payload['data']['total_rows'], 4)
         self.assertEqual(overview['owner_name'], '潘学超')
         self.assertEqual(overview['archive_count'], 2)
+        self.assertEqual(overview['archive_deadline_count'], 1)
         self.assertEqual(overview['overdue_count'], 2)
         self.assertEqual(overview['association_warning_count'], 1)
         self.assertEqual(overview['other_count'], 1)
@@ -297,6 +298,10 @@ class DashboardPageTests(TestCase):
 
         self.assertEqual(page_response.status_code, 200)
         self.assertContains(page_response, '底稿报送提醒')
+        self.assertContains(page_response, 'Document Archiving Reminder')
+        self.assertContains(page_response, '本周需要提交底稿归档')
+        self.assertContains(page_response, '底稿归档提交逾期')
+        self.assertContains(page_response, '协会报送提醒')
         self.assertContains(page_response, 'id="manuscriptUploadFile"')
         self.assertContains(page_response, 'id="manuscriptUploadLabel"')
         self.assertNotContains(page_response, '选择文件后自动解析')

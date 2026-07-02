@@ -127,7 +127,7 @@
              data-can-resize="{% if can_manage_permissions %}1{% else %}0{% endif %}">
         <div class="bond-reminder-header">
             <div>
-                <p class="eyebrow">ManuscriptReminder</p>
+                <p class="eyebrow">Document Archiving Reminder</p>
                 <div class="manuscript-title-row">
                     <h2>底稿报送提醒</h2>
                     <form id="manuscriptUploadForm" class="manuscript-upload-form">
@@ -140,8 +140,9 @@
                 {% if manuscript_reminder.configured %}
                     <div class="bond-reminder-stats manuscript-reminder-stats">
                         <span>汇总提醒 {{ manuscript_reminder.archive_count }} 项</span>
-                        <span>标色逾期 {{ manuscript_reminder.overdue_count }} 项</span>
-                        <span>协会截止 {{ manuscript_reminder.association_warning_count }} 项</span>
+                        <span>本周需要提交底稿归档 {{ manuscript_reminder.archive_deadline_count }} 项</span>
+                        <span>底稿归档提交逾期 {{ manuscript_reminder.overdue_count }} 项</span>
+                        <span>协会报送提醒 {{ manuscript_reminder.association_warning_count }} 项</span>
                     </div>
                 {% endif %}
             </div>
