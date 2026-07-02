@@ -1,0 +1,63 @@
+<div class="info-form-grid">
+    <label class="wide">
+        标题
+        <input name="title" value="{% if card %}{{ card.title }}{% endif %}" required placeholder="例如：募集资金收款账户信息">
+    </label>
+    <label>
+        <input type="checkbox" name="is_active"{% if not card or card.is_active %} checked{% endif %}>
+        启用
+    </label>
+    <label>
+        <input type="checkbox" name="is_restricted"{% if card and card.is_restricted %} checked{% endif %}>
+        仅指定用户可见
+    </label>
+</div>
+
+<div class="info-bulk-import">
+    <label>
+        粘贴完整内容
+        <textarea name="bulk_content" rows="5" placeholder="募集资金收款账户信息&#10;户名：中信证券股份有限公司&#10;开户行：中信银行北京瑞城中心支行&#10;账号：7116810187000000121"></textarea>
+    </label>
+    <button class="plain-button" type="button" data-import-bulk>解析并导入下方键值对</button>
+</div>
+
+<div class="info-item-editor">
+    <div class="info-item-editor-head">
+        <strong>具体信息</strong>
+        <button class="plain-button" type="button" data-add-item>添加一条</button>
+    </div>
+    <div class="info-item-editor-list">
+        {% if card and card.items.all %}
+            {% for item in card.items.all %}
+                <div class="info-item-editor-row">
+                    <input name="item_key" value="{{ item.key }}" placeholder="键" required>
+                    <input name="item_value" value="{{ item.value }}" placeholder="值" required>
+                    <button class="plain-button" type="button" data-remove-item>删除</button>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="info-item-editor-row">
+                <input name="item_key" placeholder="键" required>
+                <input name="item_value" placeholder="值" required>
+                <button class="plain-button" type="button" data-remove-item>删除</button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="info-permission-box">
+    <strong>指定可见用户</strong>
+    <div class="info-user-list">
+        {% for user_option in active_users %}
+            <label>
+                <input type="checkbox"
+                       name="allowed_user"
+                       value="{{ user_option.id }}"
+                       {% if card and user_option.id in card.allowed_user_ids %}checked{% endif %}>
+                {{ user_option.first_name|default:user_option.username }}
+            </label>
+        {% empty %}
+            <span>暂无可选用户</span>
+        {% endfor %}
+    </div>
+</div>

@@ -1,8 +1,10 @@
 from django.contrib.staticfiles import finders
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
+from django.db.models import Max, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -11,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from .api_views import bond_reminder_overview
 from .decorators import feature_required
-from .models import CommonWebsite, CommonWebsiteSetting
+from .models import CommonWebsite, CommonWebsiteSetting, InfoCard, InfoCardItem, InfoCardPermission, InfoCardSetting
 from .permissions import features_for_user, is_super_admin
 from .services.market_yield_refresh import get_refresh_job, refresh_job_payload, start_market_yield_refresh
 from .services.market_yields import market_yield_overview
@@ -64,11 +66,24 @@ def get_common_website_setting():
     return setting
 
 
+def get_info_card_setting():
+    setting, _ = InfoCardSetting.objects.get_or_create(key='default')
+    if setting.cards_per_row not in (3, 4, 5):
+        setting.cards_per_row = 3
+        setting.save(update_fields=['cards_per_row', 'updated_at'])
+    return setting
+
+
 def _redirect_common_website_edit():
     return redirect('/?edit_common_websites=1')
 
 
 def _require_common_website_admin(request):
+    if not is_super_admin(request.user):
+        raise PermissionDenied
+
+
+def _require_info_card_admin(request):
     if not is_super_admin(request.user):
         raise PermissionDenied
 
@@ -228,6 +243,233 @@ def common_website_bulk_update(request):
     return _redirect_common_website_edit()
 
 
+def _redirect_info_cards():
+    return redirect('dashboard:info')
+
+
+def _visible_info_cards_for(user):
+    cards = InfoCard.objects.prefetch_related('items', 'permissions__user')
+    if is_super_admin(user):
+        return cards
+    return cards.filter(
+        Q(is_restricted=False) | Q(permissions__user=user),
+        is_active=True,
+    ).distinct()
+
+
+def _colon_index(line):
+    positions = [position for position in (line.find('：'), line.find(':')) if position >= 0]
+    return min(positions) if positions else -1
+
+
+def _parse_info_bulk_content(content, title):
+    parsed_title = ''
+    items = []
+    invalid_lines = []
+    for raw_line in (content or '').splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        colon_index = _colon_index(line)
+        if colon_index < 0:
+            if not title and not parsed_title:
+                parsed_title = line
+            else:
+                invalid_lines.append(line)
+            continue
+        key = line[:colon_index].strip()
+        value = line[colon_index + 1 :].strip()
+        if key and value:
+            items.append((key, value))
+        else:
+            invalid_lines.append(line)
+    return parsed_title, items, invalid_lines
+
+
+def _clean_info_card_payload(post_data, current_sort_order=None):
+    title = (post_data.get('title') or '').strip()
+    bulk_content = post_data.get('bulk_content') or ''
+    parsed_title, bulk_items, invalid_lines = _parse_info_bulk_content(bulk_content, title)
+    if not title and parsed_title:
+        title = parsed_title
+
+    manual_items = []
+    item_keys = post_data.getlist('item_key')
+    item_values = post_data.getlist('item_value')
+    for index in range(max(len(item_keys), len(item_values))):
+        key = (item_keys[index] if index < len(item_keys) else '').strip()
+        value = (item_values[index] if index < len(item_values) else '').strip()
+        if not key and not value:
+            continue
+        if not key or not value:
+            invalid_lines.append(f'{key}：{value}'.strip('：'))
+            continue
+        manual_items.append((key, value))
+
+    items = manual_items or bulk_items
+    errors = []
+    if not title:
+        errors.append('标题不能为空。')
+    if invalid_lines:
+        errors.append('以下行无法解析为完整键值对：' + '；'.join(invalid_lines))
+    if not items:
+        errors.append('至少需要添加一条具体信息。')
+    if errors:
+        raise ValidationError(errors)
+
+    try:
+        sort_order = int(post_data.get('sort_order') or current_sort_order or 100)
+    except (TypeError, ValueError):
+        sort_order = current_sort_order or 100
+
+    is_restricted = post_data.get('is_restricted') == 'on'
+    allowed_user_ids = []
+    if is_restricted:
+        for raw_id in post_data.getlist('allowed_user'):
+            try:
+                allowed_user_ids.append(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+
+    return {
+        'title': title,
+        'sort_order': max(0, sort_order),
+        'is_active': post_data.get('is_active') == 'on',
+        'is_restricted': is_restricted,
+        'items': items,
+        'allowed_user_ids': allowed_user_ids,
+    }
+
+
+def _next_info_card_sort_order():
+    latest = InfoCard.objects.aggregate(value=Max('sort_order'))['value']
+    return (latest or 0) + 10
+
+
+def _save_info_card(card, payload):
+    with transaction.atomic():
+        card.title = payload['title']
+        card.sort_order = payload['sort_order']
+        card.is_active = payload['is_active']
+        card.is_restricted = payload['is_restricted']
+        if card.pk:
+            card.save(update_fields=['title', 'sort_order', 'is_active', 'is_restricted', 'updated_at'])
+        else:
+            card.save()
+
+        card.items.all().delete()
+        InfoCardItem.objects.bulk_create(
+            [
+                InfoCardItem(card=card, key=key, value=value, sort_order=(index + 1) * 10)
+                for index, (key, value) in enumerate(payload['items'])
+            ]
+        )
+
+        card.permissions.all().delete()
+        if card.is_restricted and payload['allowed_user_ids']:
+            users = User.objects.filter(id__in=payload['allowed_user_ids'], is_active=True)
+            InfoCardPermission.objects.bulk_create(
+                [InfoCardPermission(card=card, user=user) for user in users],
+                ignore_conflicts=True,
+            )
+
+
+@feature_required('info')
+def info(request):
+    can_manage_info_cards = is_super_admin(request.user)
+    setting = get_info_card_setting()
+    cards = list(_visible_info_cards_for(request.user))
+    for card in cards:
+        card.allowed_user_ids = {permission.user_id for permission in card.permissions.all()}
+        card.copy_text = '\n'.join(f'{item.key}：{item.value}' for item in card.items.all())
+        card.search_text = ' '.join(
+            [card.title] + [item.key for item in card.items.all()] + [item.value for item in card.items.all()]
+        )
+
+    context = base_context(request, '常用信息')
+    context.update(
+        {
+            'info_cards': cards,
+            'info_cards_per_row': setting.cards_per_row,
+            'can_manage_info_cards': can_manage_info_cards,
+            'active_users': User.objects.filter(is_active=True).order_by('first_name', 'username', 'id')
+            if can_manage_info_cards
+            else [],
+            'next_info_sort_order': _next_info_card_sort_order() if can_manage_info_cards else 100,
+        }
+    )
+    return render(request, 'dashboard/info.html', context)
+
+
+@require_POST
+@feature_required('info')
+def info_card_create(request):
+    _require_info_card_admin(request)
+    try:
+        payload = _clean_info_card_payload(request.POST, current_sort_order=_next_info_card_sort_order())
+        card = InfoCard()
+        _save_info_card(card, payload)
+        messages.success(request, '常用信息卡片已添加。')
+    except ValidationError as exc:
+        messages.error(request, '; '.join(exc.messages))
+    return _redirect_info_cards()
+
+
+@require_POST
+@feature_required('info')
+def info_card_update(request, card_id):
+    _require_info_card_admin(request)
+    card = get_object_or_404(InfoCard, pk=card_id)
+    try:
+        payload = _clean_info_card_payload(request.POST, current_sort_order=card.sort_order)
+        _save_info_card(card, payload)
+        messages.success(request, '常用信息卡片已更新。')
+    except ValidationError as exc:
+        messages.error(request, '; '.join(exc.messages))
+    return _redirect_info_cards()
+
+
+@require_POST
+@feature_required('info')
+def info_card_delete(request, card_id):
+    _require_info_card_admin(request)
+    get_object_or_404(InfoCard, pk=card_id).delete()
+    messages.success(request, '常用信息卡片已删除。')
+    return _redirect_info_cards()
+
+
+@require_POST
+@feature_required('info')
+def info_card_order_update(request):
+    _require_info_card_admin(request)
+    with transaction.atomic():
+        for index, raw_id in enumerate(request.POST.getlist('card_id')):
+            try:
+                card_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            InfoCard.objects.filter(pk=card_id).update(sort_order=(index + 1) * 10)
+    messages.success(request, '常用信息排序已更新。')
+    return _redirect_info_cards()
+
+
+@require_POST
+@feature_required('info')
+def info_card_layout_update(request):
+    _require_info_card_admin(request)
+    try:
+        cards_per_row = int(request.POST.get('cards_per_row') or 3)
+    except (TypeError, ValueError):
+        cards_per_row = 3
+    if cards_per_row not in (3, 4, 5):
+        cards_per_row = 3
+    setting = get_info_card_setting()
+    setting.cards_per_row = cards_per_row
+    setting.save(update_fields=['cards_per_row', 'updated_at'])
+    messages.success(request, '常用信息布局已更新。')
+    return _redirect_info_cards()
+
+
 @require_POST
 @feature_required('overview')
 def market_yields_refresh(request):
@@ -317,11 +559,6 @@ def placeholder(request, page_title):
 @feature_required('projects')
 def projects(request):
     return placeholder(request, '项目空间')
-
-
-@feature_required('info')
-def info(request):
-    return placeholder(request, '常用信息')
 
 
 @feature_required('files')

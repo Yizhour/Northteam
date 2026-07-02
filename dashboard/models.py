@@ -216,8 +216,8 @@ class MarketYieldPoint(models.Model):
         ordering = ['-trading_date', 'curve_code', 'maturity_years']
         unique_together = [('source', 'curve_code', 'trading_date', 'maturity_years')]
         indexes = [
-            models.Index(fields=['source', '-trading_date']),
-            models.Index(fields=['curve_code', '-trading_date']),
+            models.Index(fields=['source', '-trading_date'], name='dashboard_m_source_9118f1_idx'),
+            models.Index(fields=['curve_code', '-trading_date'], name='dashboard_m_curve_c_4e8c90_idx'),
         ]
 
     def __str__(self):
@@ -292,3 +292,82 @@ class CommonWebsiteSetting(models.Model):
 
     def __str__(self):
         return f'常用网站每行 {self.cards_per_row} 个'
+
+
+class InfoCard(models.Model):
+    """Reusable information card shown on the common information page."""
+
+    title = models.CharField('标题', max_length=160)
+    sort_order = models.PositiveIntegerField('排序', default=100)
+    is_active = models.BooleanField('启用', default=True)
+    is_restricted = models.BooleanField('仅指定用户可见', default=False)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'title', 'id']
+        verbose_name = '常用信息卡片'
+        verbose_name_plural = '常用信息卡片'
+
+    def __str__(self):
+        return self.title
+
+
+class InfoCardItem(models.Model):
+    """Key-value row inside an information card."""
+
+    card = models.ForeignKey(InfoCard, verbose_name='卡片', on_delete=models.CASCADE, related_name='items')
+    key = models.CharField('键', max_length=120)
+    value = models.TextField('值')
+    sort_order = models.PositiveIntegerField('排序', default=100)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = '常用信息条目'
+        verbose_name_plural = '常用信息条目'
+
+    def __str__(self):
+        return f'{self.key}：{self.value}'
+
+
+class InfoCardPermission(models.Model):
+    """Per-user visibility rule for restricted information cards."""
+
+    card = models.ForeignKey(InfoCard, verbose_name='卡片', on_delete=models.CASCADE, related_name='permissions')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='可见用户',
+        on_delete=models.CASCADE,
+        related_name='permitted_info_cards',
+    )
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        unique_together = [('card', 'user')]
+        ordering = ['card__sort_order', 'user__username']
+        verbose_name = '常用信息卡片权限'
+        verbose_name_plural = '常用信息卡片权限'
+
+    def __str__(self):
+        return f'{self.card} - {self.user}'
+
+
+class InfoCardSetting(models.Model):
+    """Layout settings for common information cards."""
+
+    key = models.CharField(max_length=40, unique=True, default='default')
+    cards_per_row = models.PositiveSmallIntegerField('每行卡片数', default=3)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        ordering = ['key']
+        verbose_name = '常用信息设置'
+        verbose_name_plural = '常用信息设置'
+
+    def save(self, *args, **kwargs):
+        if self.cards_per_row not in (3, 4, 5):
+            self.cards_per_row = 3
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'常用信息每行 {self.cards_per_row} 个'

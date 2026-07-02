@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}常用信息 | NorthTeam2 工作台{% endblock %}
+
+{% block content %}
+<section class="page-heading compact-heading">
+    <p class="eyebrow">Common Info</p>
+    <h1>常用信息</h1>
+    <p class="heading-text">集中保存常用账户、联系人、流程口径等信息。每条信息可单独复制，也可一键复制整张卡片内容。</p>
+</section>
+
+<section class="info-page" id="infoCardsPage" data-can-manage="{{ can_manage_info_cards|yesno:'1,0' }}">
+    {% if messages %}
+        <div class="page-messages">
+            {% for message in messages %}
+                <div class="page-message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="info-toolbar panel">
+        <label class="info-search-label">
+            <span>搜索</span>
+            <input id="infoSearchInput" type="search" placeholder="搜索标题、键或内容">
+        </label>
+        {% if can_manage_info_cards %}
+            <form class="info-layout-form" method="post" action="{% url 'dashboard:info_card_layout_update' %}">
+                {% csrf_token %}
+                <label>
+                    每行显示
+                    <select name="cards_per_row">
+                        <option value="3"{% if info_cards_per_row == 3 %} selected{% endif %}>3 张</option>
+                        <option value="4"{% if info_cards_per_row == 4 %} selected{% endif %}>4 张</option>
+                        <option value="5"{% if info_cards_per_row == 5 %} selected{% endif %}>5 张</option>
+                    </select>
+                </label>
+                <button class="plain-button" type="submit">保存布局</button>
+            </form>
+        {% endif %}
+    </div>
+
+    {% if can_manage_info_cards %}
+        <details class="panel info-admin-create">
+            <summary>新增常用信息卡片</summary>
+            <form class="info-card-form" method="post" action="{% url 'dashboard:info_card_create' %}">
+                {% csrf_token %}
+                <input type="hidden" name="sort_order" value="{{ next_info_sort_order }}">
+                {% include "dashboard/partials/info_card_form_fields.html" with card=None %}
+                <div class="info-form-actions">
+                    <button class="primary-button" type="submit">保存新卡片</button>
+                </div>
+            </form>
+        </details>
+
+        <form id="infoOrderForm" method="post" action="{% url 'dashboard:info_card_order_update' %}">
+            {% csrf_token %}
+            <div id="infoOrderInputs">
+                {% for card in info_cards %}
+                    <input type="hidden" name="card_id" value="{{ card.id }}">
+                {% endfor %}
+            </div>
+            <button class="plain-button info-order-save" type="submit">保存当前排序</button>
+        </form>
+    {% endif %}
+
+    <div class="info-card-grid columns-{{ info_cards_per_row }}" id="infoCardGrid">
+        {% for card in info_cards %}
+            <article class="info-card{% if not card.is_active %} inactive{% endif %}"
+                     data-card-id="{{ card.id }}"
+                     data-title="{{ card.title|lower }}"
+                     data-search="{{ card.search_text|lower }}"
+                     {% if can_manage_info_cards %}draggable="true"{% endif %}>
+                <div class="info-card-head">
+                    <div>
+                        <h2>{{ card.title }}</h2>
+                        {% if card.is_restricted %}
+                            <span class="info-card-tag">指定用户可见</span>
+                        {% endif %}
+                        {% if not card.is_active %}
+                            <span class="info-card-tag muted">已停用</span>
+                        {% endif %}
+                    </div>
+                    {% if can_manage_info_cards %}
+                        <span class="info-drag-handle" title="拖动排序">拖动</span>
+                    {% endif %}
+                </div>
+
+                <div class="info-card-items">
+                    {% for item in card.items.all %}
+                        <div class="info-card-item">
+                            <div class="info-card-text">
+                                <strong>{{ item.key }}</strong>
+                                <span>{{ item.value }}</span>
+                            </div>
+                            <button class="plain-button info-copy-button" type="button" data-copy-value="{{ item.value }}">复制</button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="info-card-actions">
+                    <button class="primary-button info-copy-all" type="button" data-copy-value="{{ card.copy_text }}">复制全部</button>
+                </div>
+
+                {% if can_manage_info_cards %}
+                    <details class="info-card-editor">
+                        <summary>编辑卡片</summary>
+                        <form class="info-card-form" method="post" action="{% url 'dashboard:info_card_update' card.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="sort_order" value="{{ card.sort_order }}">
+                            {% include "dashboard/partials/info_card_form_fields.html" with card=card %}
+                            <div class="info-form-actions">
+                                <button class="primary-button" type="submit">保存修改</button>
+                            </div>
+                        </form>
+                        <form method="post" action="{% url 'dashboard:info_card_delete' card.id %}" class="info-delete-form">
+                            {% csrf_token %}
+                            <button class="danger-button" type="submit" data-confirm-delete="确认删除这张常用信息卡片？">删除卡片</button>
+                        </form>
+                    </details>
+                {% endif %}
+            </article>
+        {% empty %}
+            <div class="info-empty-state">暂无可查看的常用信息。</div>
+        {% endfor %}
+    </div>
+</section>
+
+<div class="copy-toast" id="copyToast" role="status" hidden></div>
+
+<script>
+(function () {
+    var page = document.getElementById('infoCardsPage');
+    if (!page) {
+        return;
+    }
+
+    var searchInput = document.getElementById('infoSearchInput');
+    var grid = document.getElementById('infoCardGrid');
+    var orderForm = document.getElementById('infoOrderForm');
+    var orderInputs = document.getElementById('infoOrderInputs');
+    var dragCard = null;
+
+    function copyText(value) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(value);
+        }
+        return new Promise(function (resolve, reject) {
+            var input = document.createElement('textarea');
+            input.value = value;
+            input.setAttribute('readonly', 'readonly');
+            input.style.position = 'fixed';
+            input.style.left = '-9999px';
+            document.body.appendChild(input);
+            input.select();
+            try {
+                document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
+            } catch (error) {
+                reject(error);
+            } finally {
+                document.body.removeChild(input);
+            }
+        });
+    }
+
+    function showToast(message, isError) {
+        var toast = document.getElementById('copyToast');
+        if (!toast) {
+            return;
+        }
+        toast.textContent = message;
+        toast.classList.toggle('error', Boolean(isError));
+        toast.hidden = false;
+        window.clearTimeout(toast._timer);
+        toast._timer = window.setTimeout(function () {
+            toast.hidden = true;
+        }, 2200);
+    }
+
+    function colonIndex(line) {
+        var cn = line.indexOf('：');
+        var en = line.indexOf(':');
+        if (cn === -1) {
+            return en;
+        }
+        if (en === -1) {
+            return cn;
+        }
+        return Math.min(cn, en);
+    }
+
+    function itemRow(key, value) {
+        var row = document.createElement('div');
+        row.className = 'info-item-editor-row';
+        row.innerHTML = '<input name="item_key" placeholder="键" required>' +
+            '<input name="item_value" placeholder="值" required>' +
+            '<button class="plain-button" type="button" data-remove-item>删除</button>';
+        row.querySelector('[name="item_key"]').value = key || '';
+        row.querySelector('[name="item_value"]').value = value || '';
+        return row;
+    }
+
+    function syncOrderInputs() {
+        if (!orderInputs || !grid) {
+            return;
+        }
+        orderInputs.innerHTML = '';
+        Array.prototype.forEach.call(grid.querySelectorAll('.info-card[data-card-id]'), function (card) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'card_id';
+            input.value = card.dataset.cardId;
+            orderInputs.appendChild(input);
+        });
+    }
+
+    if (searchInput && grid) {
+        searchInput.addEventListener('input', function () {
+            var query = searchInput.value.trim().toLowerCase();
+            Array.prototype.forEach.call(grid.querySelectorAll('.info-card'), function (card, index) {
+                if (!query) {
+                    card.hidden = false;
+                    card.style.order = '';
+                    return;
+                }
+                var titleHit = (card.dataset.title || '').indexOf(query) >= 0;
+                var contentHit = (card.dataset.search || '').indexOf(query) >= 0;
+                card.hidden = !titleHit && !contentHit;
+                card.style.order = String((titleHit ? 1 : 2) * 1000 + index);
+            });
+        });
+    }
+
+    page.addEventListener('click', function (event) {
+        var copyButton = event.target.closest('[data-copy-value]');
+        if (copyButton) {
+            copyText(copyButton.dataset.copyValue || '')
+                .then(function () { showToast('已复制'); })
+                .catch(function () { showToast('复制失败，请手动复制。', true); });
+        }
+
+        var addButton = event.target.closest('[data-add-item]');
+        if (addButton) {
+            addButton.closest('.info-card-form').querySelector('.info-item-editor-list').appendChild(itemRow('', ''));
+        }
+
+        var removeButton = event.target.closest('[data-remove-item]');
+        if (removeButton) {
+            var list = removeButton.closest('.info-item-editor-list');
+            if (list.children.length > 1) {
+                removeButton.closest('.info-item-editor-row').remove();
+            } else {
+                removeButton.closest('.info-item-editor-row').querySelectorAll('input').forEach(function (input) {
+                    input.value = '';
+                });
+            }
+        }
+
+        var importButton = event.target.closest('[data-import-bulk]');
+        if (importButton) {
+            var form = importButton.closest('.info-card-form');
+            var bulkInput = form.querySelector('[name="bulk_content"]');
+            var titleInput = form.querySelector('[name="title"]');
+            var list = form.querySelector('.info-item-editor-list');
+            var parsed = [];
+            var invalid = [];
+            (bulkInput.value || '').split(/\r?\n/).forEach(function (rawLine) {
+                var line = rawLine.trim();
+                var index;
+                if (!line) {
+                    return;
+                }
+                index = colonIndex(line);
+                if (index < 0) {
+                    if (!titleInput.value.trim()) {
+                        titleInput.value = line;
+                    } else {
+                        invalid.push(line);
+                    }
+                    return;
+                }
+                var key = line.slice(0, index).trim();
+                var value = line.slice(index + 1).trim();
+                if (key && value) {
+                    parsed.push([key, value]);
+                } else {
+                    invalid.push(line);
+                }
+            });
+            if (parsed.length) {
+                list.innerHTML = '';
+                parsed.forEach(function (pair) {
+                    list.appendChild(itemRow(pair[0], pair[1]));
+                });
+            }
+            showToast(invalid.length ? '已导入，跳过 ' + invalid.length + ' 行无效内容。' : '已导入键值对。', Boolean(invalid.length));
+        }
+
+        var deleteButton = event.target.closest('[data-confirm-delete]');
+        if (deleteButton && !window.confirm(deleteButton.dataset.confirmDelete)) {
+            event.preventDefault();
+        }
+    });
+
+    if (grid && page.dataset.canManage === '1') {
+        grid.addEventListener('dragstart', function (event) {
+            dragCard = event.target.closest('.info-card');
+            if (dragCard) {
+                dragCard.classList.add('dragging');
+                event.dataTransfer.effectAllowed = 'move';
+            }
+        });
+        grid.addEventListener('dragend', function () {
+            if (dragCard) {
+                dragCard.classList.remove('dragging');
+            }
+            dragCard = null;
+            syncOrderInputs();
+        });
+        grid.addEventListener('dragover', function (event) {
+            var target = event.target.closest('.info-card');
+            if (!dragCard || !target || target === dragCard) {
+                return;
+            }
+            event.preventDefault();
+            var rect = target.getBoundingClientRect();
+            if (event.clientY < rect.top + rect.height / 2) {
+                grid.insertBefore(dragCard, target);
+            } else {
+                grid.insertBefore(dragCard, target.nextSibling);
+            }
+        });
+    }
+
+    if (orderForm) {
+        orderForm.addEventListener('submit', syncOrderInputs);
+    }
+})();
+</script>
+{% endblock %}

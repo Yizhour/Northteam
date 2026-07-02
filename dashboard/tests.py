@@ -16,7 +16,20 @@ from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.config import BOND_CACHE_FILE
 from tools.bondreminder.app.storage import save_bond_table_from_upload
 
-from .models import CommonWebsite, CommonWebsiteSetting, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint, MarketYieldRefreshJob
+from .models import (
+    CommonWebsite,
+    CommonWebsiteSetting,
+    Feature,
+    FeatureAccess,
+    InfoCard,
+    InfoCardItem,
+    InfoCardPermission,
+    InfoCardSetting,
+    Intern,
+    InternSchedule,
+    MarketYieldPoint,
+    MarketYieldRefreshJob,
+)
 from .services.market_yields import market_yield_overview, prune_old_market_yields
 
 
@@ -58,6 +71,12 @@ class DashboardPageTests(TestCase):
                     maturity_years=maturity_years,
                     yield_rate=Decimal(rate),
                 )
+
+    def create_info_card(self, title='募集资金收款账户信息', items=None, **kwargs):
+        card = InfoCard.objects.create(title=title, **kwargs)
+        for index, (key, value) in enumerate(items or [('户名', '中信证券股份有限公司'), ('账号', '7116810187000000121')]):
+            InfoCardItem.objects.create(card=card, key=key, value=value, sort_order=(index + 1) * 10)
+        return card
 
     def test_default_permissions_are_seeded(self):
         self.assertTrue(Group.objects.filter(name='超级管理员').exists())
@@ -587,6 +606,130 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(bulk_response.status_code, 403)
         self.assertFalse(CommonWebsite.objects.exists())
+
+    def test_info_page_shows_public_cards_with_copy_controls_for_member(self):
+        self.create_info_card()
+        self.user_in_group('info_member', '正式成员')
+        self.client.login(username='info_member', password='pass12345')
+
+        response = self.client.get(reverse('dashboard:info'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '常用信息')
+        self.assertNotContains(response, 'Module Placeholder')
+        self.assertContains(response, '募集资金收款账户信息')
+        self.assertContains(response, '户名')
+        self.assertContains(response, '中信证券股份有限公司')
+        self.assertContains(response, 'data-copy-value="中信证券股份有限公司"')
+        self.assertContains(response, '复制全部')
+        self.assertNotContains(response, '新增常用信息卡片')
+        self.assertNotContains(response, '保存当前排序')
+        self.assertNotContains(response, 'data-confirm-delete')
+
+    def test_info_restricted_card_only_visible_to_allowed_user_and_admin(self):
+        public_card = self.create_info_card(title='公开信息')
+        restricted_card = self.create_info_card(title='受限账户', is_restricted=True)
+        allowed_user = self.user_in_group('info_allowed', '正式成员')
+        blocked_user = self.user_in_group('info_blocked', '正式成员')
+        InfoCardPermission.objects.create(card=restricted_card, user=allowed_user)
+
+        self.client.login(username='info_allowed', password='pass12345')
+        allowed_response = self.client.get(reverse('dashboard:info'))
+        self.client.logout()
+        self.client.login(username='info_blocked', password='pass12345')
+        blocked_response = self.client.get(reverse('dashboard:info'))
+        self.client.logout()
+        User.objects.create_superuser('info_admin', 'info@example.com', 'pass12345', first_name='管理员')
+        self.client.login(username='info_admin', password='pass12345')
+        admin_response = self.client.get(reverse('dashboard:info'))
+
+        self.assertContains(allowed_response, public_card.title)
+        self.assertContains(allowed_response, restricted_card.title)
+        self.assertContains(blocked_response, public_card.title)
+        self.assertNotContains(blocked_response, restricted_card.title)
+        self.assertContains(admin_response, restricted_card.title)
+
+    def test_super_admin_can_create_info_card_from_pasted_content(self):
+        User.objects.create_superuser('info_creator', 'creator@example.com', 'pass12345', first_name='管理员')
+        self.client.login(username='info_creator', password='pass12345')
+
+        response = self.client.post(
+            reverse('dashboard:info_card_create'),
+            data={
+                'title': '',
+                'is_active': 'on',
+                'bulk_content': (
+                    '募集资金收款账户信息\n'
+                    '户名: 中信证券股份有限公司\n'
+                    '开户行：中信银行北京瑞城中心支行\n'
+                    '账号：7116810187000000121'
+                ),
+            },
+        )
+        card = InfoCard.objects.get(title='募集资金收款账户信息')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(card.is_restricted)
+        self.assertEqual(list(card.items.values_list('key', 'value')), [
+            ('户名', '中信证券股份有限公司'),
+            ('开户行', '中信银行北京瑞城中心支行'),
+            ('账号', '7116810187000000121'),
+        ])
+
+    def test_super_admin_can_manage_info_card_permissions_layout_and_order(self):
+        first = self.create_info_card(title='第一张', sort_order=10)
+        second = self.create_info_card(title='第二张', sort_order=20)
+        member = self.user_in_group('info_perm_member', '正式成员')
+        User.objects.create_superuser('info_manager', 'manager@example.com', 'pass12345', first_name='管理员')
+        self.client.login(username='info_manager', password='pass12345')
+
+        page_response = self.client.get(reverse('dashboard:info'))
+        update_response = self.client.post(
+            reverse('dashboard:info_card_update', args=[first.id]),
+            data={
+                'title': first.title,
+                'is_active': 'on',
+                'is_restricted': 'on',
+                'allowed_user': [str(member.id)],
+                'item_key': ['户名'],
+                'item_value': ['更新后的户名'],
+            },
+        )
+        layout_response = self.client.post(reverse('dashboard:info_card_layout_update'), data={'cards_per_row': '5'})
+        order_response = self.client.post(
+            reverse('dashboard:info_card_order_update'),
+            data={'card_id': [str(second.id), str(first.id)]},
+        )
+        first.refresh_from_db()
+        second.refresh_from_db()
+
+        self.assertContains(page_response, '新增常用信息卡片')
+        self.assertContains(page_response, 'name="allowed_user"')
+        self.assertEqual(update_response.status_code, 302)
+        self.assertTrue(first.is_restricted)
+        self.assertTrue(InfoCardPermission.objects.filter(card=first, user=member).exists())
+        self.assertEqual(first.items.get().value, '更新后的户名')
+        self.assertEqual(layout_response.status_code, 302)
+        self.assertEqual(InfoCardSetting.objects.get(key='default').cards_per_row, 5)
+        self.assertEqual(order_response.status_code, 302)
+        self.assertEqual(second.sort_order, 10)
+        self.assertEqual(first.sort_order, 20)
+
+    def test_member_cannot_manage_info_cards(self):
+        card = self.create_info_card()
+        self.user_in_group('info_plain_member', '正式成员')
+        self.client.login(username='info_plain_member', password='pass12345')
+
+        create_response = self.client.post(
+            reverse('dashboard:info_card_create'),
+            data={'title': 'Nope', 'is_active': 'on', 'item_key': ['键'], 'item_value': ['值']},
+        )
+        delete_response = self.client.post(reverse('dashboard:info_card_delete', args=[card.id]))
+
+        self.assertEqual(create_response.status_code, 403)
+        self.assertEqual(delete_response.status_code, 403)
+        self.assertFalse(InfoCard.objects.filter(title='Nope').exists())
+        self.assertTrue(InfoCard.objects.filter(id=card.id).exists())
 
     def test_overview_requires_login_even_if_anonymous_permission_is_enabled(self):
         FeatureAccess.objects.filter(

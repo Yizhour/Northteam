@@ -4,7 +4,19 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import CommonWebsite, CommonWebsiteSetting, Feature, FeatureAccess, Intern, InternSchedule, MarketYieldPoint
+from .models import (
+    CommonWebsite,
+    CommonWebsiteSetting,
+    Feature,
+    FeatureAccess,
+    InfoCard,
+    InfoCardItem,
+    InfoCardPermission,
+    InfoCardSetting,
+    Intern,
+    InternSchedule,
+    MarketYieldPoint,
+)
 
 
 def display_staff_name(user):
@@ -119,4 +131,45 @@ class CommonWebsiteAdmin(admin.ModelAdmin):
 
 @admin.register(CommonWebsiteSetting)
 class CommonWebsiteSettingAdmin(admin.ModelAdmin):
+    list_display = ('key', 'cards_per_row', 'updated_at')
+
+
+class InfoCardItemInline(admin.TabularInline):
+    model = InfoCardItem
+    extra = 1
+    fields = ('key', 'value', 'sort_order')
+    ordering = ('sort_order', 'id')
+
+
+class InfoCardPermissionInline(admin.TabularInline):
+    model = InfoCardPermission
+    extra = 1
+    autocomplete_fields = ('user',)
+
+
+@admin.register(InfoCard)
+class InfoCardAdmin(admin.ModelAdmin):
+    list_display = ('title', 'sort_order', 'is_active', 'is_restricted', 'updated_at')
+    list_filter = ('is_active', 'is_restricted')
+    search_fields = ('title', 'items__key', 'items__value')
+    ordering = ('sort_order', 'title', 'id')
+    inlines = (InfoCardItemInline, InfoCardPermissionInline)
+
+
+@admin.register(InfoCardItem)
+class InfoCardItemAdmin(admin.ModelAdmin):
+    list_display = ('card', 'key', 'sort_order')
+    search_fields = ('card__title', 'key', 'value')
+    ordering = ('card__sort_order', 'sort_order', 'id')
+
+
+@admin.register(InfoCardPermission)
+class InfoCardPermissionAdmin(admin.ModelAdmin):
+    list_display = ('card', 'user', 'created_at')
+    search_fields = ('card__title', 'user__username', 'user__first_name', 'user__email')
+    autocomplete_fields = ('card', 'user')
+
+
+@admin.register(InfoCardSetting)
+class InfoCardSettingAdmin(admin.ModelAdmin):
     list_display = ('key', 'cards_per_row', 'updated_at')
