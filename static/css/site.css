@@ -901,6 +901,10 @@ h2 {
     opacity: 0.66;
 }
 
+.info-card.search-hidden {
+    display: none !important;
+}
+
 .info-card.dragging {
     opacity: 0.5;
     outline: 2px solid #8db9df;

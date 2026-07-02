@@ -662,6 +662,8 @@ class DashboardPageTests(TestCase):
         self.assertContains(response, '.info-card{')
         self.assertContains(response, 'data-title-text="募集资金收款账户信息"')
         self.assertContains(response, 'data-content-text="户名 账号 中信证券股份有限公司 7116810187000000121"')
+        self.assertContains(response, '.info-card.search-hidden')
+        self.assertContains(response, "card.classList.toggle('search-hidden'")
         self.assertNotContains(response, 'id="infoSearchButton"')
         self.assertContains(response, '户名')
         self.assertContains(response, '中信证券股份有限公司')
