@@ -61,6 +61,25 @@ class BondReminder:
                 self.log(f"读取数据文件失败: {exc}")
             return None
 
+    def _format_display_value(self, value, column_name="", date_columns=None):
+        if pd.isna(value):
+            return ""
+        if hasattr(value, "date") and not isinstance(value, str):
+            try:
+                return str(value.date())
+            except Exception:
+                pass
+        text = str(value).strip()
+        if not text:
+            return ""
+        looks_like_midnight = bool(re.match(r"^\d{4}-\d{2}-\d{2}[T\s]00:00:00(?:\.0+)?$", text))
+        should_parse = column_name in set(date_columns or []) or looks_like_midnight
+        if should_parse:
+            parsed = pd.to_datetime(text, errors="coerce")
+            if not pd.isna(parsed):
+                return str(parsed.date())
+        return text
+
     def collect_events(self, start_date=None, end_date=None):
         """Return reminder events without sending email or writing logs."""
         target_cols = self.config.get("date_columns", [])
@@ -95,7 +114,7 @@ class BondReminder:
                     row_data = {}
                     for display_col in valid_display_cols:
                         val = row[display_col]
-                        row_data[display_col] = str(val) if not pd.isna(val) else ""
+                        row_data[display_col] = self._format_display_value(val, display_col, valid_date_cols)
                     events.append(
                         {
                             "date_str": str(event_date),
@@ -150,7 +169,7 @@ class BondReminder:
                         for display_col in display_cols:
                             if display_col in df.columns:
                                 val = row[display_col]
-                                row_data[display_col] = str(val) if not pd.isna(val) else ""
+                                row_data[display_col] = self._format_display_value(val, display_col, valid_date_cols)
                         events_found.append(
                             {
                                 "date_obj": event_date,

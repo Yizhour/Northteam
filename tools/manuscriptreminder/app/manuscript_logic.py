@@ -155,10 +155,19 @@ class ManuscriptReminder:
             seen_summary_rows.add(key)
             return summary_events_by_row[key]
 
-        def add_summary_type(item, base_event, event_type, color, date_value=None, weekday=""):
+        def add_summary_type(item, base_event, event_type, color, date_value=None, weekday="", priority=50):
             summary = summary_for(item, base_event)
             if not any(existing.get("label") == event_type for existing in summary["event_types"]):
-                summary["event_types"].append({"label": event_type, "color": color})
+                summary["event_types"].append(
+                    {
+                        "label": event_type,
+                        "color": color,
+                        "date_str": str(date_value) if date_value else "",
+                        "weekday": weekday,
+                        "priority": priority,
+                    }
+                )
+                summary["event_types"].sort(key=lambda event: event.get("priority", 50))
             summary["event_type"] = "、".join(event["label"] for event in summary["event_types"])
             if date_value and not summary["date_str"]:
                 summary["date_str"] = str(date_value)
@@ -185,6 +194,7 @@ class ManuscriptReminder:
                     colors.get(archive_column, self.default_colors[0]),
                     archive_date,
                     ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][archive_date.weekday()],
+                    30,
                 )
 
             if style.get("fill_alert") in {"yellow", "red"}:
@@ -197,7 +207,7 @@ class ManuscriptReminder:
                     "color": overdue_color,
                 }
                 overdue_events.append(overdue_event)
-                add_summary_type(item, base_event, "逾期提醒", overdue_color)
+                add_summary_type(item, base_event, "逾期提醒", overdue_color, priority=20)
 
             if association_date:
                 remaining = self._business_days_between(friday, association_date)
@@ -213,7 +223,15 @@ class ManuscriptReminder:
                         "color": association_color,
                     }
                     association_warning_events.append(association_event)
-                    add_summary_type(item, base_event, association_label, association_color)
+                    add_summary_type(
+                        item,
+                        base_event,
+                        association_label,
+                        association_color,
+                        association_date,
+                        ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][association_date.weekday()],
+                        10,
+                    )
 
         archive_events = list(summary_events_by_row.values())
         archive_events.sort(key=lambda item: (item["sort_date"], item["source_row"]))
@@ -306,7 +324,9 @@ class ManuscriptReminder:
         table {{ width: 100%; border-collapse: collapse; border: 1px solid #ddd; margin: 10px 0 22px; }}
         th {{ background: #eee; padding: 8px; border: 1px solid #ddd; text-align: left; white-space: nowrap; }}
         td {{ padding: 7px 8px; border: 1px solid #ddd; }}
-        .tag {{ display:inline-block; padding:3px 7px; border-radius:4px; color:#fff; font-weight:bold; font-size:12px; }}
+        .tag {{ display:inline-block; padding:3px 7px; border-radius:4px; color:#fff; font-weight:bold; font-size:12px; margin:1px 2px 1px 0; }}
+        .date-tag {{ display:inline-block; padding:3px 7px; border-radius:4px; color:#fff; font-weight:bold; font-size:12px; margin:1px 2px 1px 0; }}
+        .date-tag.empty {{ visibility:hidden; }}
         </style></head><body><div class="container">
         <div class="header"><h2>{subject}</h2></div>
         <div class="intro"><p>{intro}</p><p>负责人：{overview.get('owner_name', '')}；本周范围：{overview.get('week_range', {}).get('label', '')}</p></div>
@@ -316,20 +336,21 @@ class ManuscriptReminder:
             if not events:
                 html += "<p>暂无事项。</p>"
                 continue
-            html += "<table><thead><tr><th>提醒类型</th><th>日期/剩余工作日</th>"
+            html += "<table><thead><tr><th>提醒类型</th><th>日期</th>"
             for column in display_columns:
                 html += f"<th>{column}</th>"
             html += "</tr></thead><tbody>"
             for event in events:
-                first = event.get("date_str", "")
-                if "remaining_workdays" in event:
-                    first = f"{first}（剩余 {event['remaining_workdays']} 工作日）"
                 tags = event.get("event_types") or [{"label": event.get("event_type", ""), "color": event.get("color", "#3498db")}]
                 tag_html = "".join(
                     f"<span class='tag' style='background:{tag.get('color', '#3498db')}'>{tag.get('label', '')}</span> "
                     for tag in tags
                 )
-                html += f"<tr><td>{tag_html}</td><td>{first}</td>"
+                date_html = "".join(
+                    f"<span class='date-tag{' empty' if not tag.get('date_str') else ''}' style='background:{tag.get('color', '#3498db')}'>{tag.get('date_str') or '-'}</span> "
+                    for tag in tags
+                )
+                html += f"<tr><td>{tag_html}</td><td>{date_html}</td>"
                 for column in display_columns:
                     html += f"<td>{event.get('display_data', {}).get(column, '')}</td>"
                 html += "</tr>"

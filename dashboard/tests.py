@@ -270,9 +270,14 @@ class DashboardPageTests(TestCase):
         self.assertEqual(overview['association_warning_count'], 1)
         self.assertEqual(overview['other_count'], 1)
         self.assertIn('潘学超本周黄底项目', overview['archive_events'][0]['display_data']['项目名称'])
+        monday = timezone.localdate() - timedelta(days=timezone.localdate().weekday())
         self.assertEqual(
             [item['label'] for item in overview['archive_events'][0]['event_types']],
-            ['归档流程发起截止日', '逾期提醒', '本周五距离截止日5工作日'],
+            ['本周五距离截止日5工作日', '逾期提醒', '归档流程发起截止日'],
+        )
+        self.assertEqual(
+            [item['date_str'] for item in overview['archive_events'][0]['event_types']],
+            [str(monday + timedelta(days=11)), '', str(monday + timedelta(days=2))],
         )
         self.assertIn('潘学超白底远期项目', overview['other_rows'][0]['display_data']['项目名称'])
         self.assertEqual({item['alert_level'] for item in overview['overdue_events']}, {'yellow', 'red'})
@@ -298,11 +303,19 @@ class DashboardPageTests(TestCase):
         self.assertContains(page_response, '本周需要提归档流程')
         self.assertContains(page_response, '其他')
         self.assertContains(page_response, '暂无提醒 1 项')
+        self.assertContains(page_response, 'manuscript-date-tag')
         self.assertNotContains(page_response, 'Excel 标色逾期提醒')
         self.assertNotContains(page_response, '周五距离协会报送截止日不足')
         self.assertTrue(payload['data']['manuscript_reminder']['available'])
         self.assertEqual(payload['data']['manuscript_reminder']['overdue_count'], 2)
         self.assertEqual(payload['data']['manuscript_reminder']['other_count'], 1)
+
+    def test_bondreminder_formats_midnight_datetimes_for_display(self):
+        reminder = BondReminder({'date_columns': ['付息日']})
+
+        self.assertEqual(reminder._format_display_value('2026-07-03T00:00:00', '付息日', ['付息日']), '2026-07-03')
+        self.assertEqual(reminder._format_display_value('2026-07-03 00:00:00', '任意日期', []), '2026-07-03')
+        self.assertEqual(reminder._format_display_value('B001', '证券代码', ['付息日']), 'B001')
 
     def test_mailer_deduplicates_receivers_before_sending(self):
         from tools.bondreminder.app import mailer
