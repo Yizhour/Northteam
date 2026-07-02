@@ -79,7 +79,7 @@
                     <div>
                         <h2>{{ card.title }}</h2>
                         {% if card.is_restricted %}
-                            <span class="info-card-tag">指定用户可见</span>
+                            <span class="info-card-tag">{{ card.visibility_label }}</span>
                         {% endif %}
                         {% if not card.is_active %}
                             <span class="info-card-tag muted">已停用</span>

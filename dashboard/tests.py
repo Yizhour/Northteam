@@ -690,6 +690,8 @@ class DashboardPageTests(TestCase):
 
         self.assertContains(allowed_response, public_card.title)
         self.assertContains(allowed_response, restricted_card.title)
+        self.assertContains(allowed_response, '仅 info_allowed 可见')
+        self.assertNotContains(allowed_response, '指定用户可见')
         self.assertContains(blocked_response, public_card.title)
         self.assertNotContains(blocked_response, restricted_card.title)
         self.assertContains(admin_response, restricted_card.title)

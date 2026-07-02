@@ -372,13 +372,20 @@ def _save_info_card(card, payload):
             )
 
 
+def _user_display_name(user):
+    full_name = user.get_full_name().strip()
+    return full_name or user.first_name.strip() or user.get_username()
+
+
 @feature_required('info')
 def info(request):
     can_manage_info_cards = is_super_admin(request.user)
     setting = get_info_card_setting()
     cards = list(_visible_info_cards_for(request.user))
     for card in cards:
-        card.allowed_user_ids = {permission.user_id for permission in card.permissions.all()}
+        permissions = list(card.permissions.all())
+        card.allowed_user_ids = {permission.user_id for permission in permissions}
+        card.visibility_label = '仅 ' + '、'.join(_user_display_name(permission.user) for permission in permissions) + ' 可见'
         card.copy_text = '\n'.join(f'{item.key}：{item.value}' for item in card.items.all())
         card.content_search_text = ' '.join(
             [item.key for item in card.items.all()] + [item.value for item in card.items.all()]
