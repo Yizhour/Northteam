@@ -23,6 +23,11 @@ tools/bondreminder/outputs/*
 !tools/bondreminder/outputs/.gitkeep
 tools/bondreminder/logs/*
 !tools/bondreminder/logs/.gitkeep
+tools/manuscriptreminder/data/
+tools/manuscriptreminder/uploads/*
+!tools/manuscriptreminder/uploads/.gitkeep
+tools/manuscriptreminder/logs/*
+!tools/manuscriptreminder/logs/.gitkeep
 
 # Local environment files
 .env

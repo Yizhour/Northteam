@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'simpleui',
     'dashboard.apps.DashboardConfig',
     'tools.bondreminder.django_app.apps.BondReminderConfig',
+    'tools.manuscriptreminder.django_app.apps.ManuscriptReminderConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -63,7 +64,11 @@ ROOT_URLCONF = 'northteam2.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates', BASE_DIR / 'tools' / 'bondreminder' / 'app' / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'templates',
+            BASE_DIR / 'tools' / 'bondreminder' / 'app' / 'templates',
+            BASE_DIR / 'tools' / 'manuscriptreminder' / 'app' / 'templates',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

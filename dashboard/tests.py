@@ -1,5 +1,6 @@
 import json
 import time
+from io import BytesIO
 from datetime import datetime, timedelta
 from decimal import Decimal
 from email.mime.text import MIMEText
@@ -12,6 +13,8 @@ from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
 from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.config import BOND_CACHE_FILE
 from tools.bondreminder.app.storage import save_bond_table_from_upload
@@ -85,6 +88,7 @@ class DashboardPageTests(TestCase):
         self.assertFalse(Group.objects.filter(name='实习生').exists())
         self.assertFalse(Group.objects.filter(name='只读用户（未登录）').exists())
         self.assertTrue(Feature.objects.filter(key='bondreminder').exists())
+        self.assertTrue(Feature.objects.filter(key='manuscriptreminder').exists())
         self.assertFalse(
             FeatureAccess.objects.filter(
                 feature__key='overview',
@@ -113,6 +117,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '高效工具箱')
         self.assertContains(response, '付息兑付提醒')
+        self.assertContains(response, '底稿报送提醒')
         self.assertContains(response, 'member')
         self.assertNotContains(response, '权限控制台')
 
@@ -195,6 +200,96 @@ class DashboardPageTests(TestCase):
         self.assertEqual(config_payload['data']['display_columns'], ['code', 'pay_date'])
         self.assertEqual(logs_payload['data'], [])
         self.assertEqual(after_files, before_files)
+
+    def build_manuscript_workbook_upload(self):
+        today = timezone.localdate()
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+        wb = Workbook()
+        ws = wb.active
+        ws.append(
+            [
+                '序号',
+                '项目名称',
+                '项目编号',
+                '项目负责人',
+                '底稿报送阶段',
+                '预计申报日期/发行日期/存续期归档起算日',
+                '归档流程发起截止日',
+                '距归档流程发起截止日',
+                '是否已完成归档',
+                '协会报送截止日',
+                '距协会报送截止日剩余工作日',
+                '是否已报送协会',
+            ]
+        )
+        rows = [
+            ['1', '潘学超本周黄底项目', 'P001', '潘学超', '申报阶段', str(monday), str(monday + timedelta(days=2)), '2', '否', str(friday + timedelta(days=7)), '5', '否'],
+            ['2', '潘学超红底项目', 'P002', '潘学超', '发行阶段', str(monday), str(monday - timedelta(days=10)), '-10', '否', str(friday + timedelta(days=30)), '30', '否'],
+            ['3', '其他负责人黄底项目', 'P003', '路瑶', '申报阶段', str(monday), str(monday + timedelta(days=3)), '3', '否', str(friday + timedelta(days=7)), '5', '否'],
+            ['4', '潘学超白底远期项目', 'P004', '潘学超', '申报阶段', str(monday), str(monday + timedelta(days=20)), '20', '否', str(friday + timedelta(days=30)), '30', '否'],
+        ]
+        for row in rows:
+            ws.append(row)
+        yellow = PatternFill('solid', fgColor='FFFF00')
+        red = PatternFill('solid', fgColor='FF0000')
+        for cell in ws[2]:
+            cell.fill = yellow
+        for cell in ws[3]:
+            cell.fill = red
+        for cell in ws[4]:
+            cell.fill = yellow
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        return SimpleUploadedFile(
+            'manuscript.xlsx',
+            buffer.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+    def test_manuscript_upload_filters_owner_and_classifies_three_reminder_groups(self):
+        self.user_in_group('manuscript_member', '正式成员')
+        self.client.login(username='manuscript_member', password='pass12345')
+
+        response = self.client.post(
+            '/tools/manuscript-reminder/api/upload/data',
+            data={'file': self.build_manuscript_workbook_upload(), 'header': '0'},
+        )
+        overview_response = self.client.get('/tools/manuscript-reminder/api/overview')
+        tools_response = self.client.get(reverse('dashboard:tools'))
+
+        payload = json.loads(response.content)
+        overview = json.loads(overview_response.content)['data']
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['data']['total_rows'], 4)
+        self.assertEqual(overview['owner_name'], '潘学超')
+        self.assertEqual(overview['archive_count'], 1)
+        self.assertEqual(overview['overdue_count'], 2)
+        self.assertEqual(overview['association_warning_count'], 1)
+        self.assertIn('潘学超本周黄底项目', overview['archive_events'][0]['display_data']['项目名称'])
+        self.assertEqual({item['alert_level'] for item in overview['overdue_events']}, {'yellow', 'red'})
+        self.assertContains(tools_response, '底稿报送提醒')
+
+    def test_manuscript_home_and_json_overview_expose_upload_entry_and_summary(self):
+        self.user_in_group('manuscript_home_member', '正式成员')
+        self.client.login(username='manuscript_home_member', password='pass12345')
+
+        self.client.post(
+            '/tools/manuscript-reminder/api/upload/data',
+            data={'file': self.build_manuscript_workbook_upload(), 'header': '0'},
+        )
+        page_response = self.client.get(reverse('dashboard:home'))
+        api_response = self.client.get('/api/overview/')
+        payload = json.loads(api_response.content)
+
+        self.assertEqual(page_response.status_code, 200)
+        self.assertContains(page_response, '底稿报送提醒')
+        self.assertContains(page_response, 'id="manuscriptUploadFile"')
+        self.assertContains(page_response, '本周需要提归档流程')
+        self.assertTrue(payload['data']['manuscript_reminder']['available'])
+        self.assertEqual(payload['data']['manuscript_reminder']['overdue_count'], 2)
 
     def test_mailer_deduplicates_receivers_before_sending(self):
         from tools.bondreminder.app import mailer
@@ -535,6 +630,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['tools'][0]['key'], 'bondreminder')
+        self.assertIn('manuscriptreminder', [item['key'] for item in payload['data']['tools']])
 
     def test_overview_api_requires_login_and_exposes_bond_reminder_summary(self):
         anonymous_response = self.client.get('/api/overview/')
@@ -547,12 +643,15 @@ class DashboardPageTests(TestCase):
         member_response = self.client.get('/api/overview/')
         member_payload = json.loads(member_response.content)
         bond_reminder = member_payload['data']['bond_reminder']
+        manuscript_reminder = member_payload['data']['manuscript_reminder']
 
         self.assertEqual(member_response.status_code, 200)
         self.assertTrue(bond_reminder['available'])
         self.assertIn('weekly_events', bond_reminder)
         self.assertIn('today_events', bond_reminder)
         self.assertIn('display_columns', bond_reminder)
+        self.assertTrue(manuscript_reminder['available'])
+        self.assertIn('archive_events', manuscript_reminder)
         self.assertEqual(member_payload['data']['common_websites'][0]['name'], '交易所')
 
     def test_home_removes_demo_sections_and_shows_common_websites(self):

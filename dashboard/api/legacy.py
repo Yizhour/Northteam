@@ -15,6 +15,8 @@ from django.views.decorators.http import require_http_methods
 
 from tools.bondreminder.app.bond_logic import BondReminder
 from tools.bondreminder.app.storage import load_config
+from tools.manuscriptreminder.app.manuscript_logic import ManuscriptReminder
+from tools.manuscriptreminder.app.storage import load_config as load_manuscript_config
 
 from dashboard.models import CommonWebsite, FeatureAccess, Intern, InternSchedule
 from dashboard.permissions import (
@@ -33,6 +35,7 @@ FEATURE_PATHS = {
     'projects': '/projects',
     'tools': '/tools',
     'bondreminder': '/tools/bond-reminder/',
+    'manuscriptreminder': '/tools/manuscript-reminder/',
     'info': '/info',
     'files': '/files',
     'mistakes': '/mistakes',
@@ -230,13 +233,17 @@ def bond_reminder_overview():
     }
 
 
+def manuscript_reminder_overview():
+    return ManuscriptReminder(load_manuscript_config()).collect_overview()
+
+
 @ensure_csrf_cookie
 def session_info(request):
     role = role_for_user(request.user)
     features = [
         serialize_feature(feature)
         for feature in features_for_user(request.user)
-        if feature.key in FEATURE_PATHS and feature.key != 'bondreminder'
+        if feature.key in FEATURE_PATHS and feature.key not in {'bondreminder', 'manuscriptreminder'}
     ]
     return api_ok(
         {
@@ -307,6 +314,7 @@ def overview_api(request):
     data = {
         **OVERVIEW_DATA,
         'bond_reminder': bond_reminder_overview(),
+        'manuscript_reminder': manuscript_reminder_overview(),
         'market_yields': market_yield_overview(),
         'common_websites': [
             {'name': website.name, 'url': website.url}
@@ -332,6 +340,17 @@ def tools_api(request):
                 'path': '/tools/bond-reminder/',
                 'external': True,
                 'can_use': has_feature_access(request.user, 'bondreminder', FeatureAccess.ACTION_USE),
+            }
+        )
+    if has_feature_access(request.user, 'manuscriptreminder', FeatureAccess.ACTION_VIEW):
+        tools.append(
+            {
+                'key': 'manuscriptreminder',
+                'title': '底稿报送提醒',
+                'description': '上传底稿目录表，查看归档流程、逾期标色和协会报送截止提醒。',
+                'path': '/tools/manuscript-reminder/',
+                'external': True,
+                'can_use': has_feature_access(request.user, 'manuscriptreminder', FeatureAccess.ACTION_USE),
             }
         )
     return api_ok({'tools': tools})

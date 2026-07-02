@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/', include('dashboard.api_urls')),
     path('', include('dashboard.urls')),
     path('tools/bond-reminder/', include('tools.bondreminder.django_app.urls')),
+    path('tools/manuscript-reminder/', include('tools.manuscriptreminder.django_app.urls')),
     path('accounts/login/', WorkspaceLoginView.as_view(), name='login'),
     path('accounts/logout/', LogoutView.as_view(next_page='login'), name='logout'),
     path(

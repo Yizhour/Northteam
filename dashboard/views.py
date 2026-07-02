@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from .api_views import bond_reminder_overview
+from .api_views import bond_reminder_overview, manuscript_reminder_overview
 from .decorators import feature_required
 from .models import CommonWebsite, CommonWebsiteSetting, InfoCard, InfoCardItem, InfoCardPermission, InfoCardSetting
 from .permissions import features_for_user, is_super_admin
@@ -45,6 +45,7 @@ def home(request):
     context.update(
         {
             'bond_reminder': bond_reminder_overview(),
+            'manuscript_reminder': manuscript_reminder_overview(),
             'market_yields': market_yield_overview(),
             'market_yield_refresh': refresh_job_payload(get_refresh_job()),
             'market_yields_public_url': request.build_absolute_uri(reverse('dashboard:market_yields_public')),
@@ -549,6 +550,11 @@ def tools(request):
             'title': '付息兑付提醒',
             'description': '进入债券付息、兑付、每日自查和提醒任务工具。',
             'url_name': 'bond_reminder',
+        },
+        {
+            'title': '底稿报送提醒',
+            'description': '上传底稿目录表，查看归档流程、逾期标色和协会报送截止提醒。',
+            'url_name': 'manuscript_reminder',
         }
     ]
     return render(request, 'dashboard/tools.html', context)

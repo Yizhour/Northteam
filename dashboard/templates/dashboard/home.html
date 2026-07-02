@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-.page-messages{display:grid;gap:8px;margin-bottom:18px}.market-yield-panel .page-messages{margin:-6px 0 12px}.page-message{padding:10px 12px;border-radius:6px;font-size:13px;font-weight:700}.page-message.success{color:#14532d;background:#dcfce7;border:1px solid #86efac}.page-message.error{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.page-message.info{color:#1d4f7a;background:#e8f1fa;border:1px solid #b8d5ef}.market-yield-panel{margin-bottom:22px;padding:20px}.market-yield-heading{align-items:center}.market-yield-actions{display:flex;align-items:center;gap:8px}.market-yield-heading form{margin:0}.market-refresh-button,.market-more-button,.market-copy-button{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:700}.market-refresh-button:hover,.market-more-button:hover,.market-copy-button:hover{background:#e8f1fa;border-color:#8db9df}.market-refresh-button:disabled{color:#637083;background:#f3f6fa;border-color:#d8e1ec;cursor:wait}.market-yield-meta{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 12px;color:#637083;font-size:12px}.market-yield-table-wrap{overflow-x:auto;border:1px solid #d8e1ec;border-radius:8px}.market-yield-table{width:100%;min-width:680px;border-collapse:collapse;background:#fff;font-size:12px}.market-yield-table th,.market-yield-table td{padding:9px 10px;border-bottom:1px solid #d8e1ec;text-align:right;white-space:nowrap}.market-yield-table thead th{color:#334155;background:#eef3f8;font-size:12px;letter-spacing:0}.market-yield-table th:first-child,.market-yield-table th:nth-child(2){text-align:left}.market-yield-table tbody th{color:#12345a;font-weight:700}.market-yield-table tbody tr.previous-day{background:#fafcff}.market-yield-date{width:74px;color:#12345a;background:#eef3f8;font-weight:700;text-align:left!important;vertical-align:middle}.market-yield-table tbody tr:last-child th,.market-yield-table tbody tr:last-child td{border-bottom:0}.market-yield-empty{color:#637083;text-align:center!important}.yield-cell{font-family:"Consolas","SFMono-Regular","Microsoft YaHei",monospace;font-size:13px;font-weight:700}.yield-cell.up{color:#16a34a}.yield-cell.down{color:#dc2626}.yield-cell.flat,.yield-cell.neutral{color:#637083}.common-sites-panel{margin-top:22px}.common-sites-header-actions{display:flex;align-items:center;gap:8px}.common-sites-list{display:grid;gap:12px}.common-sites-list.columns-2{grid-template-columns:repeat(2,minmax(0,1fr))}.common-sites-list.columns-3{grid-template-columns:repeat(3,minmax(0,1fr))}.common-sites-list.columns-4{grid-template-columns:repeat(4,minmax(0,1fr))}.common-sites-list.columns-5{grid-template-columns:repeat(5,minmax(0,1fr))}.common-site-link{display:grid;align-content:center;gap:6px;min-height:78px;padding:14px 16px;color:#12345a;background:#fbfcfe;border:1px solid #d8e1ec;border-radius:6px;font-size:15px;font-weight:700}.common-site-link:hover{background:#e8f1fa;border-color:#8db9df}.common-site-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.common-site-url{overflow:hidden;color:#637083;font-size:12px;font-weight:400;text-overflow:ellipsis;white-space:nowrap}.common-site-edit-link{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;font-size:13px;font-weight:700}.common-site-edit-link:hover{background:#e8f1fa;border-color:#8db9df}.common-sites-admin{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid #d8e1ec}.common-sites-bulk-form{display:grid;gap:12px}.common-site-layout-form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.common-site-layout-form label{display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700}.common-site-layout-form select{padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-form,.common-site-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(220px,1.5fr) 80px 72px auto;gap:8px;align-items:center}.common-site-form input,.common-site-row input{width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-check{display:flex;align-items:center;gap:6px;color:#637083;font-size:13px;font-weight:700}.common-site-check input{width:auto}.common-site-check.danger-check{color:#991b1b}.common-site-actions{display:flex;gap:8px;color:#637083;font-size:13px;font-weight:700}.common-site-empty{padding:14px;color:#637083;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;text-align:center}@media(max-width:900px){.common-sites-list.columns-2,.common-sites-list.columns-3,.common-sites-list.columns-4,.common-sites-list.columns-5{grid-template-columns:1fr}.common-site-form,.common-site-row{grid-template-columns:1fr}}
+.page-messages{display:grid;gap:8px;margin-bottom:18px}.market-yield-panel .page-messages{margin:-6px 0 12px}.page-message{padding:10px 12px;border-radius:6px;font-size:13px;font-weight:700}.page-message.success{color:#14532d;background:#dcfce7;border:1px solid #86efac}.page-message.error{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.page-message.info{color:#1d4f7a;background:#e8f1fa;border:1px solid #b8d5ef}.market-yield-panel{margin-bottom:22px;padding:20px}.market-yield-heading{align-items:center}.market-yield-actions{display:flex;align-items:center;gap:8px}.market-yield-heading form{margin:0}.market-refresh-button,.market-more-button,.market-copy-button,.manuscript-upload-button,.manuscript-tool-link{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;text-decoration:none}.market-refresh-button:hover,.market-more-button:hover,.market-copy-button:hover,.manuscript-upload-button:hover,.manuscript-tool-link:hover{background:#e8f1fa;border-color:#8db9df}.market-refresh-button:disabled,.manuscript-upload-button:disabled{color:#637083;background:#f3f6fa;border-color:#d8e1ec;cursor:wait}.market-yield-meta{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 12px;color:#637083;font-size:12px}.market-yield-table-wrap{overflow-x:auto;border:1px solid #d8e1ec;border-radius:8px}.market-yield-table{width:100%;min-width:680px;border-collapse:collapse;background:#fff;font-size:12px}.market-yield-table th,.market-yield-table td{padding:9px 10px;border-bottom:1px solid #d8e1ec;text-align:right;white-space:nowrap}.market-yield-table thead th{color:#334155;background:#eef3f8;font-size:12px;letter-spacing:0}.market-yield-table th:first-child,.market-yield-table th:nth-child(2){text-align:left}.market-yield-table tbody th{color:#12345a;font-weight:700}.market-yield-table tbody tr.previous-day{background:#fafcff}.market-yield-date{width:74px;color:#12345a;background:#eef3f8;font-weight:700;text-align:left!important;vertical-align:middle}.market-yield-table tbody tr:last-child th,.market-yield-table tbody tr:last-child td{border-bottom:0}.market-yield-empty{color:#637083;text-align:center!important}.yield-cell{font-family:"Consolas","SFMono-Regular","Microsoft YaHei",monospace;font-size:13px;font-weight:700}.yield-cell.up{color:#16a34a}.yield-cell.down{color:#dc2626}.yield-cell.flat,.yield-cell.neutral{color:#637083}.manuscript-reminder-panel{margin-top:22px}.manuscript-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.manuscript-upload-form{display:flex;align-items:center;gap:8px;margin:0;flex-wrap:wrap}.manuscript-upload-form input[type=file]{max-width:230px;color:#334155;font-size:13px}.manuscript-stats{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.manuscript-stats span{display:inline-flex;align-items:center;gap:4px;padding:6px 9px;color:#12345a;background:#eef6ff;border:1px solid #cfe4f7;border-radius:6px;font-size:12px;font-weight:700}.manuscript-sections{display:grid;gap:16px}.manuscript-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.manuscript-section-title h3{margin:0;color:#12345a;font-size:15px}.manuscript-section-title span{color:#637083;font-size:12px}.common-sites-panel{margin-top:22px}.common-sites-header-actions{display:flex;align-items:center;gap:8px}.common-sites-list{display:grid;gap:12px}.common-sites-list.columns-2{grid-template-columns:repeat(2,minmax(0,1fr))}.common-sites-list.columns-3{grid-template-columns:repeat(3,minmax(0,1fr))}.common-sites-list.columns-4{grid-template-columns:repeat(4,minmax(0,1fr))}.common-sites-list.columns-5{grid-template-columns:repeat(5,minmax(0,1fr))}.common-site-link{display:grid;align-content:center;gap:6px;min-height:78px;padding:14px 16px;color:#12345a;background:#fbfcfe;border:1px solid #d8e1ec;border-radius:6px;font-size:15px;font-weight:700}.common-site-link:hover{background:#e8f1fa;border-color:#8db9df}.common-site-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.common-site-url{overflow:hidden;color:#637083;font-size:12px;font-weight:400;text-overflow:ellipsis;white-space:nowrap}.common-site-edit-link{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;color:#12345a;background:#fff;border:1px solid #d8e1ec;border-radius:6px;font-size:13px;font-weight:700}.common-site-edit-link:hover{background:#e8f1fa;border-color:#8db9df}.common-sites-admin{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid #d8e1ec}.common-sites-bulk-form{display:grid;gap:12px}.common-site-layout-form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.common-site-layout-form label{display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700}.common-site-layout-form select{padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-form,.common-site-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(220px,1.5fr) 80px 72px auto;gap:8px;align-items:center}.common-site-form input,.common-site-row input{width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-size:13px}.common-site-check{display:flex;align-items:center;gap:6px;color:#637083;font-size:13px;font-weight:700}.common-site-check input{width:auto}.common-site-check.danger-check{color:#991b1b}.common-site-actions{display:flex;gap:8px;color:#637083;font-size:13px;font-weight:700}.common-site-empty{padding:14px;color:#637083;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;text-align:center}@media(max-width:900px){.common-sites-list.columns-2,.common-sites-list.columns-3,.common-sites-list.columns-4,.common-sites-list.columns-5{grid-template-columns:1fr}.common-site-form,.common-site-row{grid-template-columns:1fr}.manuscript-header-actions,.manuscript-upload-form{align-items:stretch;flex-direction:column}.manuscript-upload-form input[type=file]{max-width:none}}
 </style>
 <section class="page-heading">
     <p class="eyebrow">NorthTeam2</p>
@@ -109,6 +109,121 @@
                         </div>
                     {% else %}
                         <div class="bond-empty-state small">本周暂无付息兑付事项。</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </section>
+{% endif %}
+
+{% if manuscript_reminder.available %}
+    <section id="manuscriptReminderPanel"
+             class="bond-reminder-panel manuscript-reminder-panel"
+             data-upload-url="/tools/manuscript-reminder/api/upload/data">
+        <div class="bond-reminder-header">
+            <div>
+                <p class="eyebrow">ManuscriptReminder</p>
+                <h2>底稿报送提醒</h2>
+            </div>
+            <div class="manuscript-header-actions">
+                <form id="manuscriptUploadForm" class="manuscript-upload-form">
+                    <input id="manuscriptUploadFile" type="file" accept=".xlsx,.xls,.csv" aria-label="上传底稿报送 Excel">
+                    <button id="manuscriptUploadButton" class="manuscript-upload-button" type="submit">上传解析</button>
+                </form>
+                <a class="manuscript-tool-link" href="{% url 'manuscript_reminder' %}">进入工具</a>
+            </div>
+        </div>
+
+        {% if not manuscript_reminder.configured %}
+            <div class="bond-empty-state">尚未上传底稿报送数据，或负责人筛选后暂无数据。</div>
+        {% else %}
+            <div class="manuscript-stats">
+                <span>负责人 {{ manuscript_reminder.owner_name }}</span>
+                <span>本周归档 {{ manuscript_reminder.archive_count }} 项</span>
+                <span>标色逾期 {{ manuscript_reminder.overdue_count }} 项</span>
+                <span>协会截止 {{ manuscript_reminder.association_warning_count }} 项</span>
+            </div>
+            <div class="manuscript-sections">
+                <div class="bond-section">
+                    <div class="manuscript-section-title">
+                        <h3>本周需要提归档流程</h3>
+                        <span>{{ manuscript_reminder.week_range.label }}</span>
+                    </div>
+                    {% if manuscript_reminder.archive_events %}
+                        <div class="bond-table-wrap">
+                            <table class="bond-table">
+                                <thead>
+                                    <tr>
+                                        <th>提醒类型</th>
+                                        <th>日期</th>
+                                        {% for column in manuscript_reminder.display_columns %}
+                                            <th>{{ column }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in manuscript_reminder.archive_events %}
+                                        <tr>
+                                            <td><span class="bond-tag" style="background-color: {{ event.color }}">{{ event.event_type }}</span></td>
+                                            <td class="bond-date">{{ event.date_str }}</td>
+                                            {% for column, value in event.display_data.items %}
+                                                <td>{{ value }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="bond-empty-state small">本周暂无需要提归档流程的项目。</div>
+                    {% endif %}
+                </div>
+
+                <div class="bond-section">
+                    <div class="manuscript-section-title">
+                        <h3>Excel 标色逾期提醒</h3>
+                        <span>黄底/红底</span>
+                    </div>
+                    {% if manuscript_reminder.overdue_events %}
+                        <div class="bond-event-list compact">
+                            {% for event in manuscript_reminder.overdue_events %}
+                                <article class="bond-event-card">
+                                    <span class="bond-tag" style="background-color: {{ event.color }}">{{ event.event_type }}</span>
+                                    <strong>{{ event.date_str|default:"标色行" }}</strong>
+                                    <p>
+                                        {% for column, value in event.display_data.items %}
+                                            {% if value %}{{ value }}{% if not forloop.last %} · {% endif %}{% endif %}
+                                        {% endfor %}
+                                    </p>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="bond-empty-state small">筛选后的项目暂无黄/红底逾期标记。</div>
+                    {% endif %}
+                </div>
+
+                <div class="bond-section">
+                    <div class="manuscript-section-title">
+                        <h3>周五距离协会报送截止日不足 {{ manuscript_reminder.threshold }} 工作日</h3>
+                        <span>本周五 {{ manuscript_reminder.friday }}</span>
+                    </div>
+                    {% if manuscript_reminder.association_warning_events %}
+                        <div class="bond-event-list compact">
+                            {% for event in manuscript_reminder.association_warning_events %}
+                                <article class="bond-event-card">
+                                    <span class="bond-tag" style="background-color: {{ event.color }}">{{ event.remaining_workdays }} 工作日</span>
+                                    <strong>{{ event.date_str }} {{ event.weekday }}</strong>
+                                    <p>
+                                        {% for column, value in event.display_data.items %}
+                                            {% if value %}{{ value }}{% if not forloop.last %} · {% endif %}{% endif %}
+                                        {% endfor %}
+                                    </p>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="bond-empty-state small">暂无协会截止不足阈值的项目。</div>
                     {% endif %}
                 </div>
             </div>
@@ -346,6 +461,53 @@
 
     setButtonRunning(contentNode() && contentNode().dataset.refreshStatus === 'running');
     schedulePoll(contentNode() && contentNode().dataset.refreshStatus === 'running' ? runningDelay : idleDelay);
+})();
+</script>
+<script>
+(function () {
+    var panel = document.getElementById('manuscriptReminderPanel');
+    if (!panel) {
+        return;
+    }
+    var form = document.getElementById('manuscriptUploadForm');
+    var input = document.getElementById('manuscriptUploadFile');
+    var button = document.getElementById('manuscriptUploadButton');
+    if (!form || !input || !button) {
+        return;
+    }
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        if (!input.files || !input.files[0]) {
+            return;
+        }
+        var data = new FormData();
+        data.append('file', input.files[0]);
+        data.append('header', '0');
+        button.disabled = true;
+        button.textContent = '解析中...';
+        window.fetch(panel.dataset.uploadUrl, {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin'
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('upload failed');
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                if (!payload.ok) {
+                    throw new Error(payload.error || 'upload failed');
+                }
+                window.location.reload();
+            })
+            .catch(function () {
+                button.disabled = false;
+                button.textContent = '上传解析';
+                alert('底稿报送文件上传解析失败，请检查文件格式后重试。');
+            });
+    });
 })();
 </script>
 {% endblock %}

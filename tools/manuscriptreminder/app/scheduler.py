@@ -5,13 +5,11 @@ import threading
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
 
-from .bond_logic import BondReminder
 from .config import LOG_DIR, ensure_directories
-from .customer_logic import check_birthday_jobs
 from .logging_utils import append_log
-from .storage import load_config, save_config
+from .manuscript_logic import ManuscriptReminder
+from .storage import load_config
 
 
 SCHEDULER_LOCK_FILE = LOG_DIR / "scheduler.lock"
@@ -45,8 +43,6 @@ class CrossProcessLock:
                     return False
                 try:
                     self.path.unlink()
-                except FileNotFoundError:
-                    pass
                 except OSError:
                     return False
         return False
@@ -55,9 +51,8 @@ class CrossProcessLock:
         if not self.acquired or not self.is_owner():
             self.acquired = False
             return False
-        payload = json.dumps({"pid": os.getpid(), "token": self.token, "updated_at": time.time()})
         try:
-            self.path.write_text(payload, encoding="utf-8")
+            self.path.write_text(json.dumps({"pid": os.getpid(), "token": self.token, "updated_at": time.time()}), encoding="utf-8")
             return True
         except OSError:
             self.acquired = False
@@ -105,7 +100,7 @@ def task_execution_lock():
         lock.release()
 
 
-def run_with_task_lock(callback, busy_message="发送任务正在执行，请稍后再试。"):
+def run_with_task_lock(callback, busy_message="底稿报送提醒任务正在执行，请稍后再试。"):
     with task_execution_lock() as acquired:
         if not acquired:
             append_log(busy_message)
@@ -116,11 +111,10 @@ def run_with_task_lock(callback, busy_message="发送任务正在执行，请稍
 def config_fingerprint(config):
     watched = {
         "weekly_enabled": config.get("weekly_enabled", True),
-        "weekly_time": config.get("weekly_time") or config.get("common_time", "09:00"),
+        "weekly_time": config.get("weekly_time", "09:00"),
         "schedule_day": config.get("schedule_day", "Monday"),
         "daily_enabled": config.get("daily_enabled", False),
-        "daily_time": config.get("daily_time") or config.get("common_time", "09:00"),
-        "custom_tasks": config.get("custom_tasks", []),
+        "daily_time": config.get("daily_time", "09:00"),
     }
     return json.dumps(watched, ensure_ascii=False, sort_keys=True)
 
@@ -147,7 +141,7 @@ class SchedulerService:
         self.schedule_jobs()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        append_log("调度器已启动。")
+        append_log("底稿报送提醒调度器已启动。")
         return True
 
     def start_monitor(self):
@@ -164,13 +158,6 @@ class SchedulerService:
                 return
             time.sleep(10)
 
-    def stop(self):
-        self._active = False
-        schedule.clear("bondreminder")
-        if self._scheduler_lock:
-            self._scheduler_lock.release()
-            self._scheduler_lock = None
-
     def restart(self):
         if self._scheduler_lock and self._scheduler_lock.acquired:
             self.schedule_jobs()
@@ -181,7 +168,7 @@ class SchedulerService:
             if now - self._last_heartbeat >= HEARTBEAT_SECONDS:
                 self._last_heartbeat = now
                 if not self._scheduler_lock or not self._scheduler_lock.heartbeat():
-                    append_log("调度器锁已失效，当前调度线程停止。")
+                    append_log("底稿报送提醒调度器锁已失效，当前调度线程停止。")
                     self._active = False
                     break
             if now - self._last_config_check >= CONFIG_REFRESH_SECONDS:
@@ -198,93 +185,21 @@ class SchedulerService:
 
     def schedule_jobs(self, config=None, fingerprint=None):
         with self._lock:
-            schedule.clear("bondreminder")
+            schedule.clear("manuscriptreminder")
             config = config or load_config()
-            weekly_time = config.get("weekly_time") or config.get("common_time", "09:00")
-            daily_time = config.get("daily_time") or config.get("common_time", "09:00")
-
             if config.get("weekly_enabled", True):
-                day = config.get("schedule_day", "Monday")
-                job_creator = getattr(schedule.every(), str(day).lower(), None)
+                job_creator = getattr(schedule.every(), str(config.get("schedule_day", "Monday")).lower(), None)
                 if job_creator:
-                    job_creator.at(weekly_time).do(self.run_weekly).tag("bondreminder")
-
+                    job_creator.at(config.get("weekly_time", "09:00")).do(self.run_weekly).tag("manuscriptreminder")
             if config.get("daily_enabled", False):
-                schedule.every().day.at(daily_time).do(self.run_daily).tag("bondreminder")
-
-            schedule.every().minute.do(check_birthday_jobs).tag("bondreminder")
-
-            for task in config.get("custom_tasks", []):
-                if not task.get("enabled", True) or task.get("executed", False):
-                    continue
-                time_config = task.get("time_config", {})
-                time_type = time_config.get("type", "once")
-                task_time = time_config.get("time", "00:00")
-                if time_type == "once":
-                    target_date = time_config.get("date")
-                    if target_date:
-                        schedule.every().day.at(task_time).do(self.check_and_run_once, task, target_date).tag("bondreminder")
-                elif time_type == "weekly":
-                    weekday_map = {
-                        "周一": "monday",
-                        "周二": "tuesday",
-                        "周三": "wednesday",
-                        "周四": "thursday",
-                        "周五": "friday",
-                        "周六": "saturday",
-                        "周日": "sunday",
-                    }
-                    for weekday in time_config.get("weekdays", []):
-                        en_weekday = weekday_map.get(weekday)
-                        job_creator = getattr(schedule.every(), en_weekday, None) if en_weekday else None
-                        if job_creator:
-                            job_creator.at(task_time).do(self.run_custom_task, task).tag("bondreminder")
-                elif time_type == "daily":
-                    schedule.every().day.at(task_time).do(self.run_custom_task, task).tag("bondreminder")
-
+                schedule.every().day.at(config.get("daily_time", "09:00")).do(self.run_daily).tag("manuscriptreminder")
             self._config_fingerprint = fingerprint or config_fingerprint(config)
 
     def run_weekly(self):
-        def callback():
-            reminder = BondReminder(load_config())
-            return reminder.run_weekly_check()
-
-        return run_with_task_lock(callback)
+        return run_with_task_lock(lambda: ManuscriptReminder(load_config()).run_weekly_check())
 
     def run_daily(self):
-        def callback():
-            reminder = BondReminder(load_config())
-            return reminder.run_daily_check()
-
-        return run_with_task_lock(callback)
-
-    def run_custom_task(self, task):
-        def callback():
-            reminder = BondReminder(load_config())
-            reminder.run_custom_task(task)
-            return True
-
-        return bool(run_with_task_lock(callback))
-
-    def check_and_run_once(self, task, target_date):
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        if task.get("executed", False):
-            return schedule.CancelJob
-        if current_date == target_date:
-            if not self.run_custom_task(task):
-                return None
-            config = load_config()
-            for saved_task in config.get("custom_tasks", []):
-                if saved_task.get("name") == task.get("name") and saved_task.get("time_config") == task.get("time_config"):
-                    saved_task["executed"] = True
-                    saved_task["enabled"] = False
-                    break
-            save_config(config)
-            self._config_fingerprint = None
-            return schedule.CancelJob
-        if current_date > target_date:
-            return schedule.CancelJob
-        return None
+        return run_with_task_lock(lambda: ManuscriptReminder(load_config()).run_daily_check())
 
 
 scheduler_service = SchedulerService()

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>底稿报送提醒 | NorthTeam2 工作台</title>
+  <link rel="stylesheet" href="{{ base_path }}/static/css/app.css">
+</head>
+<body>
+  <header class="nt-topbar">
+    <a class="nt-brand" href="/">
+      <span class="nt-brand-mark">NT</span>
+      <span class="nt-brand-text">NorthTeam2 工作台</span>
+    </a>
+    <nav class="nt-nav" aria-label="主导航">
+      {% for item in nav_items %}
+        <a class="nt-nav-link{% if item.label == active_nav %} active{% endif %}" href="{% url item.url_name %}">{{ item.label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="nt-user-actions">
+      <span class="nt-user-name">{{ request.user.get_username }}</span>
+      <a class="nt-admin-link" href="{% url 'password_change' %}">修改密码</a>
+      {% if can_manage_permissions %}<a class="nt-admin-link" href="{% url 'access_control' %}">权限控制台</a>{% endif %}
+      {% if request.user.is_staff %}<a class="nt-admin-link" href="/admin/">Admin</a>{% endif %}
+      <form class="nt-logout-form" method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="nt-logout-button" type="submit">退出</button>
+      </form>
+    </div>
+  </header>
+
+  <section class="nt-subbar">
+    <div>
+      <a class="nt-breadcrumb" href="/tools/">高效工具箱</a>
+      <span class="nt-breadcrumb-separator">/</span>
+      <span>底稿报送提醒</span>
+    </div>
+    <a class="nt-back-link" href="/tools/">返回工具箱</a>
+  </section>
+
+  <header class="app-header">
+    <h1>底稿报送提醒</h1>
+    <div class="header-actions">
+      <button id="sharedSettingsBtn">发件箱设置</button>
+      <button id="refreshBtn">刷新</button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs" aria-label="底稿报送提醒功能">
+      <button class="tab active" data-tab="dataTab">1. 数据导入与预览</button>
+      <button class="tab" data-tab="columnsTab">2. 关键列与颜色配置</button>
+      <button class="tab" data-tab="scheduleTab">3. 发送策略配置</button>
+      <button class="tab" data-tab="logsTab">4. 运行日志</button>
+    </nav>
+
+    <section id="dataTab" class="tab-panel active">
+      <div class="toolbar">
+        <label class="file-picker">
+          <input id="dataFile" type="file" accept=".xlsx,.xls,.csv">
+          <span>选择 Excel/CSV</span>
+        </label>
+        <label>表头所在行号 <input id="headerRow" type="number" min="0" max="20" value="0"></label>
+        <button id="refreshPreviewBtn">刷新预览</button>
+      </div>
+      <div class="overview-grid">
+        <article class="stat-card">
+          <strong id="archiveCount">0</strong>
+          <span>本周需提归档流程</span>
+        </article>
+        <article class="stat-card">
+          <strong id="overdueCount">0</strong>
+          <span>标色逾期提醒</span>
+        </article>
+        <article class="stat-card">
+          <strong id="associationCount">0</strong>
+          <span>协会截止不足阈值</span>
+        </article>
+      </div>
+      <div class="status-line" id="dataPath"></div>
+      <div class="table-wrap">
+        <table id="previewTable"></table>
+      </div>
+    </section>
+
+    <section id="columnsTab" class="tab-panel">
+      <section class="panel">
+        <h2>筛选与阈值</h2>
+        <div class="form-grid">
+          <label>负责人列 <select id="ownerColumn"></select></label>
+          <label>负责人姓名 <input id="ownerName" type="text"></label>
+          <label>归档流程截止列 <select id="archiveDeadlineColumn"></select></label>
+          <label>协会报送截止列 <select id="associationDeadlineColumn"></select></label>
+          <label>协会截止阈值（工作日） <input id="associationThreshold" type="number" min="1" max="60"></label>
+        </div>
+      </section>
+      <p class="hint">勾选“监控日期”后该列会参与每日事项扫描；事件颜色用于首页、工具页和邮件中的标签展示。</p>
+      <div class="table-wrap">
+        <table id="columnsTable"></table>
+      </div>
+    </section>
+
+    <section id="scheduleTab" class="tab-panel">
+      <div class="split">
+        <section class="panel">
+          <h2>每周报表</h2>
+          <div class="form-grid">
+            <label class="inline"><input id="weeklyEnabled" type="checkbox"> 启用周报功能</label>
+            <label>周报触发时间 <input id="weeklyTime" type="time"></label>
+            <label>发送日
+              <select id="scheduleDay">
+                <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+                <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+              </select>
+            </label>
+            <label class="wide">周报邮件标题 <input id="emailSubject" type="text"></label>
+            <label class="wide">周报开篇语 <textarea id="emailIntro" rows="3"></textarea></label>
+          </div>
+          <div class="toolbar">
+            <button id="addReceiverBtn">添加收件人</button>
+          </div>
+          <div class="table-wrap small">
+            <table id="receiversTable"></table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>每日短信触发邮件</h2>
+          <div class="form-grid">
+            <label class="inline"><input id="dailyEnabled" type="checkbox"> 启用每日短信提醒</label>
+            <label>日报触发时间 <input id="dailyTime" type="time"></label>
+            <label>短信 JSON 格式邮箱中转收件人 <input id="dailyEmailReceiver" type="email"></label>
+            <label class="wide">单个事项模板 <input id="dailyTemplate" type="text"></label>
+            <label class="wide">短信开篇语 <input id="dailyIntro" type="text"></label>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="logsTab" class="tab-panel">
+      <div class="toolbar">
+        <button id="runManualBtn" class="success">立即运行（测试）</button>
+        <button id="runWeeklyBtn">运行周报</button>
+        <button id="runDailyBtn">运行日报</button>
+        <button id="clearLogsBtn" class="danger">清空日志</button>
+      </div>
+      <pre id="logBox" class="log-box"></pre>
+    </section>
+  </main>
+
+  <dialog id="sharedSettingsDialog">
+    <form method="dialog">
+      <h2>发件箱设置</h2>
+      <div class="form-grid">
+        <label>邮箱账号 <input id="senderEmail" type="email" placeholder="your_email@163.com"></label>
+        <label>授权码 <input id="authCode" type="password" placeholder="留空保持原授权码"></label>
+        <label>发送间隔保护秒数 <input id="sendInterval" type="number" min="30"></label>
+        <label>邮件发送超时秒数 <input id="smtpTimeoutSeconds" type="number" min="3" max="60"></label>
+      </div>
+      <menu>
+        <button id="closeSharedSettingsBtn" type="button" class="primary">关闭</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+  <script>window.MANUSCRIPT_REMINDER_BASE_PATH = "{{ base_path }}";</script>
+  <script src="{{ base_path }}/static/js/app.js?v=20260702"></script>
+</body>
+</html>
