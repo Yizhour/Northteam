@@ -690,7 +690,6 @@ class DashboardPageTests(TestCase):
             data={
                 'title': first.title,
                 'is_active': 'on',
-                'is_restricted': 'on',
                 'allowed_user': [str(member.id)],
                 'item_key': ['户名'],
                 'item_value': ['更新后的户名'],
@@ -706,6 +705,7 @@ class DashboardPageTests(TestCase):
 
         self.assertContains(page_response, '新增常用信息卡片')
         self.assertContains(page_response, 'name="allowed_user"')
+        self.assertNotContains(page_response, 'name="is_restricted"')
         self.assertNotContains(page_response, '中信证券股份有限公司')
         self.assertNotContains(page_response, '7116810187000000121')
         self.assertEqual(update_response.status_code, 302)

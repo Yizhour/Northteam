@@ -7,10 +7,6 @@
         <input type="checkbox" name="is_active"{% if not card or card.is_active %} checked{% endif %}>
         启用
     </label>
-    <label>
-        <input type="checkbox" name="is_restricted"{% if card and card.is_restricted %} checked{% endif %}>
-        仅指定用户可见
-    </label>
 </div>
 
 <div class="info-bulk-import">
@@ -47,6 +43,7 @@
 
 <div class="info-permission-box">
     <strong>指定可见用户</strong>
+    <span>不勾选用户时，所有有常用信息权限的登录用户可见；勾选后仅所选用户可见。</span>
     <div class="info-user-list">
         {% for user_option in active_users %}
             <label>

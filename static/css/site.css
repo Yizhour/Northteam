@@ -818,6 +818,12 @@ h2 {
     flex: 1 1 460px;
 }
 
+.info-search-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
 .info-search-label input,
 .info-layout-form select,
 .info-form-grid input,
@@ -882,10 +888,10 @@ h2 {
 
 .info-card {
     display: grid;
-    gap: 14px;
+    gap: 10px;
     align-content: start;
     min-width: 0;
-    padding: 18px;
+    padding: 14px;
     background: #ffffff;
     border: 1px solid #cfdceb;
     border-radius: 8px;
@@ -911,21 +917,21 @@ h2 {
     align-items: start;
     justify-content: space-between;
     gap: 10px;
-    padding-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid #e2e8f0;
 }
 
 .info-card-head h2 {
-    margin-bottom: 5px;
+    margin-bottom: 2px;
     color: var(--color-navy-dark);
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.35;
 }
 
 .info-card-tag {
     display: inline-flex;
-    margin: 0 5px 5px 0;
-    padding: 3px 7px;
+    margin: 0 5px 2px 0;
+    padding: 2px 6px;
     color: #1d4f7a;
     background: #e8f1fa;
     border: 1px solid #b8d5ef;
@@ -950,7 +956,7 @@ h2 {
 
 .info-card-items {
     display: grid;
-    gap: 9px;
+    gap: 5px;
 }
 
 .info-card-item {
@@ -958,8 +964,8 @@ h2 {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
-    min-height: 42px;
-    padding: 8px 8px 8px 12px;
+    min-height: 34px;
+    padding: 5px 6px 5px 10px;
     background: #f8fbff;
     border: 1px solid #dbe7f3;
     border-radius: 6px;
@@ -978,7 +984,7 @@ h2 {
     display: inline;
     margin: 0;
     color: var(--color-navy);
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .info-card-text strong::after {
@@ -991,16 +997,22 @@ h2 {
     min-width: 0;
     overflow: hidden;
     color: #334155;
-    font-size: 14px;
-    line-height: 1.55;
+    font-size: 13px;
+    line-height: 1.35;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .info-copy-button {
-    min-height: 30px;
-    padding: 5px 10px;
+    min-height: 26px;
+    padding: 3px 8px;
+    font-size: 12px;
     white-space: nowrap;
+}
+
+.info-copy-all {
+    min-height: 32px;
+    padding: 6px 10px;
 }
 
 .info-card-actions {
@@ -1009,7 +1021,7 @@ h2 {
 }
 
 .info-card-editor {
-    padding: 12px;
+    padding: 9px;
     background: #f8fafc;
     border: 1px solid #dbe7f3;
     border-radius: 8px;
@@ -1024,12 +1036,12 @@ h2 {
 
 .info-card-form {
     display: grid;
-    gap: 16px;
-    padding: 18px;
+    gap: 12px;
+    padding: 14px;
 }
 
 .info-card-editor .info-card-form {
-    padding: 14px 0 0;
+    padding: 10px 0 0;
 }
 
 .info-form-grid {
@@ -1051,8 +1063,8 @@ h2 {
 
 .info-bulk-import {
     display: grid;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 10px;
     background: #fbfcfe;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -1060,7 +1072,7 @@ h2 {
 
 .info-item-editor {
     display: grid;
-    gap: 9px;
+    gap: 7px;
 }
 
 .info-item-editor-head {
@@ -1082,7 +1094,7 @@ h2 {
     grid-template-columns: minmax(90px, 0.8fr) minmax(160px, 1.4fr) auto;
     gap: 8px;
     align-items: center;
-    padding: 8px;
+    padding: 6px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -1091,7 +1103,7 @@ h2 {
 .info-permission-box {
     display: grid;
     gap: 9px;
-    padding: 12px;
+    padding: 10px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -1100,6 +1112,12 @@ h2 {
 .info-permission-box strong {
     color: #334155;
     font-size: 13px;
+}
+
+.info-permission-box > span {
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 .info-user-list {

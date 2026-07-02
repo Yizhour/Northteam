@@ -322,20 +322,18 @@ def _clean_info_card_payload(post_data, current_sort_order=None):
     except (TypeError, ValueError):
         sort_order = current_sort_order or 100
 
-    is_restricted = post_data.get('is_restricted') == 'on'
     allowed_user_ids = []
-    if is_restricted:
-        for raw_id in post_data.getlist('allowed_user'):
-            try:
-                allowed_user_ids.append(int(raw_id))
-            except (TypeError, ValueError):
-                continue
+    for raw_id in post_data.getlist('allowed_user'):
+        try:
+            allowed_user_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
 
     return {
         'title': title,
         'sort_order': max(0, sort_order),
         'is_active': post_data.get('is_active') == 'on',
-        'is_restricted': is_restricted,
+        'is_restricted': bool(allowed_user_ids),
         'items': items,
         'allowed_user_ids': allowed_user_ids,
     }
