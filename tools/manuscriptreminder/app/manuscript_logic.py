@@ -53,7 +53,7 @@ class ManuscriptReminder:
 
     def _business_days_between(self, start_date, end_date):
         if end_date < start_date:
-            return -1
+            return -self._business_days_between(end_date, start_date)
         days = 0
         current = start_date
         while current < end_date:
@@ -99,6 +99,7 @@ class ManuscriptReminder:
                 "configured": False,
                 "display_columns": display_columns,
                 "column_widths": self.config.get("column_widths", {}),
+                "table_widths": self.config.get("table_widths", {}),
                 "archive_events": [],
                 "overdue_events": [],
                 "association_warning_events": [],
@@ -126,6 +127,7 @@ class ManuscriptReminder:
                 "threshold": threshold,
                 "display_columns": display_columns,
                 "column_widths": self.config.get("column_widths", {}),
+                "table_widths": self.config.get("table_widths", {}),
                 "archive_events": [],
                 "overdue_events": [],
                 "association_warning_events": [],
@@ -204,18 +206,18 @@ class ManuscriptReminder:
                 overdue_event = {
                     **base_event,
                     "date_str": str(association_date or archive_date or ""),
-                    "event_type": "逾期提醒",
+                    "event_type": "已逾期",
                     "alert_level": style.get("fill_alert"),
                     "color": overdue_color,
                 }
                 overdue_events.append(overdue_event)
-                add_summary_type(item, base_event, "逾期提醒", overdue_color, priority=20)
+                add_summary_type(item, base_event, "已逾期", overdue_color, priority=20)
 
             if association_date:
                 remaining = self._business_days_between(friday, association_date)
-                if 0 <= remaining < threshold:
+                if remaining < threshold:
                     association_color = colors.get(association_column, self.default_colors[4])
-                    association_label = f"本周五距离截止日{remaining}工作日"
+                    association_label = f"本周五距离报送截止日{remaining}工作日"
                     association_event = {
                         **base_event,
                         "date_str": str(association_date),
@@ -265,6 +267,7 @@ class ManuscriptReminder:
             "threshold": threshold,
             "display_columns": display_columns,
             "column_widths": self.config.get("column_widths", {}),
+            "table_widths": self.config.get("table_widths", {}),
             "archive_events": archive_events,
             "overdue_events": overdue_events,
             "association_warning_events": association_warning_events,

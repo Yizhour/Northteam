@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {
     "association_deadline_column": "协会报送截止日",
     "association_workday_threshold": 10,
     "column_widths": {},
+    "table_widths": {},
     "column_colors": {
         "预计申报日期/发行日期/存续期归档起算日": "#3498db",
         "归档流程发起截止日": "#e74c3c",

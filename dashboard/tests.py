@@ -273,7 +273,7 @@ class DashboardPageTests(TestCase):
         monday = timezone.localdate() - timedelta(days=timezone.localdate().weekday())
         self.assertEqual(
             [item['label'] for item in overview['archive_events'][0]['event_types']],
-            ['本周五距离截止日5工作日', '逾期提醒', '归档流程发起截止日'],
+            ['本周五距离报送截止日5工作日', '已逾期', '归档流程发起截止日'],
         )
         self.assertEqual(
             [item['date_str'] for item in overview['archive_events'][0]['event_types']],
@@ -306,8 +306,11 @@ class DashboardPageTests(TestCase):
         self.assertContains(page_response, '暂无提醒 1 项')
         self.assertContains(page_response, 'manuscript-date-tag')
         self.assertContains(page_response, 'manuscript-resize-handle')
+        self.assertContains(page_response, 'manuscript-table-width-handle')
         self.assertContains(page_response, 'manuscriptColumnWidths')
+        self.assertContains(page_response, 'manuscriptTableWidths')
         self.assertNotContains(page_response, 'Excel 标色逾期提醒')
+        self.assertNotContains(page_response, '逾期提醒')
         self.assertNotContains(page_response, '周五距离协会报送截止日不足')
         self.assertTrue(payload['data']['manuscript_reminder']['available'])
         self.assertEqual(payload['data']['manuscript_reminder']['overdue_count'], 2)
