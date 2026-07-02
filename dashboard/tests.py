@@ -398,7 +398,7 @@ class DashboardPageTests(TestCase):
         fetch_mock.assert_not_called()
         self.assertEqual(service._run_date, saturday)
 
-    def test_market_yield_scheduler_stops_after_five_extra_attempts(self):
+    def test_market_yield_scheduler_runs_final_attempt_at_1845(self):
         from dashboard.services.market_yield_scheduler import MarketYieldScheduler
 
         service = MarketYieldScheduler()
@@ -408,12 +408,12 @@ class DashboardPageTests(TestCase):
             timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=49)),
             timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=58)),
             timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=7)),
-            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=16)),
-            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=25)),
-            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=34)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=44)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=45)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=54)),
         ]
 
-        with patch('dashboard.services.market_yield_scheduler.random.randint', side_effect=[0, 9 * 60, 9 * 60, 9 * 60, 9 * 60, 9 * 60]), patch(
+        with patch('dashboard.services.market_yield_scheduler.random.randint', side_effect=[0, 9 * 60, 9 * 60, 9 * 60]), patch(
             'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
             return_value={'ok': False},
         ) as fetch_mock:
@@ -421,8 +421,8 @@ class DashboardPageTests(TestCase):
                 for _ in run_times:
                     service._run_if_due()
 
-        self.assertEqual(fetch_mock.call_count, 6)
-        self.assertEqual(service._attempt_index, 6)
+        self.assertEqual(fetch_mock.call_count, 5)
+        self.assertEqual(service._attempt_index, 5)
         self.assertIsNone(service._target_run_at)
 
     def test_super_admin_can_open_access_control_and_admin(self):

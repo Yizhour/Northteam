@@ -18,9 +18,11 @@ LOOP_SECONDS = 20
 FETCH_WINDOWS = (
     (datetime_time(17, 40), datetime_time(17, 45)),
 )
-MAX_FETCH_ATTEMPTS = 6
+MAX_RANDOM_ATTEMPTS = 4
+MAX_FETCH_ATTEMPTS = 5
 RETRY_MIN_SECONDS = 9 * 60
 RETRY_MAX_SECONDS = 11 * 60
+FINAL_FETCH_TIME = datetime_time(18, 45)
 
 
 class MarketYieldScheduler:
@@ -108,11 +110,14 @@ class MarketYieldScheduler:
                 self._run_date = today
                 return
             self._attempt_index += 1
-            self._target_run_at = (
-                now + self._random_retry_delay()
-                if self._attempt_index < MAX_FETCH_ATTEMPTS
-                else None
-            )
+            self._target_run_at = self._next_target_after_failure(today, now)
+
+    def _next_target_after_failure(self, day, now):
+        if self._attempt_index < MAX_RANDOM_ATTEMPTS:
+            return now + self._random_retry_delay()
+        if self._attempt_index < MAX_FETCH_ATTEMPTS:
+            return timezone.make_aware(datetime.combine(day, FINAL_FETCH_TIME))
+        return None
 
     def _is_local_trading_day(self, day):
         return day.weekday() < 5
