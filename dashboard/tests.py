@@ -677,8 +677,8 @@ class DashboardPageTests(TestCase):
         ])
 
     def test_super_admin_can_manage_info_card_permissions_layout_and_order(self):
-        first = self.create_info_card(title='第一张', sort_order=10)
-        second = self.create_info_card(title='第二张', sort_order=20)
+        first = self.create_info_card(title='第一张', items=[('字段', '内容A')], sort_order=10)
+        second = self.create_info_card(title='第二张', items=[('字段', '内容B')], sort_order=20)
         member = self.user_in_group('info_perm_member', '正式成员')
         User.objects.create_superuser('info_manager', 'manager@example.com', 'pass12345', first_name='管理员')
         self.client.login(username='info_manager', password='pass12345')
@@ -705,6 +705,8 @@ class DashboardPageTests(TestCase):
 
         self.assertContains(page_response, '新增常用信息卡片')
         self.assertContains(page_response, 'name="allowed_user"')
+        self.assertNotContains(page_response, '中信证券股份有限公司')
+        self.assertNotContains(page_response, '7116810187000000121')
         self.assertEqual(update_response.status_code, 302)
         self.assertTrue(first.is_restricted)
         self.assertTrue(InfoCardPermission.objects.filter(card=first, user=member).exists())

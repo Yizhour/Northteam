@@ -1,7 +1,7 @@
 <div class="info-form-grid">
     <label class="wide">
         标题
-        <input name="title" value="{% if card %}{{ card.title }}{% endif %}" required placeholder="例如：募集资金收款账户信息">
+        <input name="title" value="{% if card %}{{ card.title }}{% endif %}" required placeholder="输入卡片标题">
     </label>
     <label>
         <input type="checkbox" name="is_active"{% if not card or card.is_active %} checked{% endif %}>
@@ -16,7 +16,7 @@
 <div class="info-bulk-import">
     <label>
         粘贴完整内容
-        <textarea name="bulk_content" rows="5" placeholder="募集资金收款账户信息&#10;户名：中信证券股份有限公司&#10;开户行：中信银行北京瑞城中心支行&#10;账号：7116810187000000121"></textarea>
+        <textarea name="bulk_content" rows="5" placeholder="可粘贴多行内容；每行使用“键：值”格式"></textarea>
     </label>
     <button class="plain-button" type="button" data-import-bulk>解析并导入下方键值对</button>
 </div>

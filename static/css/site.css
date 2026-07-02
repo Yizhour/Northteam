@@ -797,9 +797,10 @@ h2 {
 
 .info-toolbar {
     display: flex;
-    align-items: end;
+    align-items: center;
     justify-content: space-between;
-    gap: 14px;
+    gap: 18px;
+    padding: 16px 18px;
 }
 
 .info-search-label,
@@ -814,7 +815,7 @@ h2 {
 }
 
 .info-search-label {
-    flex: 1 1 420px;
+    flex: 1 1 460px;
 }
 
 .info-search-label input,
@@ -824,7 +825,7 @@ h2 {
 .info-item-editor-row input {
     width: 100%;
     min-width: 0;
-    padding: 9px 10px;
+    padding: 10px 12px;
     color: var(--color-text);
     background: #ffffff;
     border: 1px solid var(--color-line);
@@ -851,9 +852,10 @@ h2 {
 }
 
 .info-admin-create > summary {
-    padding: 15px 18px;
+    padding: 16px 18px;
     color: var(--color-navy-dark);
     cursor: pointer;
+    font-size: 16px;
     font-weight: 700;
 }
 
@@ -863,7 +865,7 @@ h2 {
 
 .info-card-grid {
     display: grid;
-    gap: 14px;
+    gap: 16px;
 }
 
 .info-card-grid.columns-3 {
@@ -883,11 +885,16 @@ h2 {
     gap: 14px;
     align-content: start;
     min-width: 0;
-    padding: 16px;
+    padding: 18px;
     background: #ffffff;
-    border: 1px solid var(--color-line);
+    border: 1px solid #cfdceb;
     border-radius: 8px;
     box-shadow: var(--shadow-soft);
+}
+
+.info-card:hover {
+    border-color: #a9c7e4;
+    box-shadow: 0 14px 34px rgba(18, 52, 90, 0.12);
 }
 
 .info-card.inactive {
@@ -904,11 +911,14 @@ h2 {
     align-items: start;
     justify-content: space-between;
     gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .info-card-head h2 {
-    margin-bottom: 7px;
-    font-size: 17px;
+    margin-bottom: 5px;
+    color: var(--color-navy-dark);
+    font-size: 18px;
     line-height: 1.35;
 }
 
@@ -940,7 +950,7 @@ h2 {
 
 .info-card-items {
     display: grid;
-    gap: 8px;
+    gap: 9px;
 }
 
 .info-card-item {
@@ -948,34 +958,49 @@ h2 {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
-    padding: 9px 10px;
-    background: #fbfcfe;
-    border: 1px solid #e2e8f0;
+    min-height: 42px;
+    padding: 8px 8px 8px 12px;
+    background: #f8fbff;
+    border: 1px solid #dbe7f3;
     border-radius: 6px;
 }
 
 .info-card-text {
     min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .info-card-text strong {
-    display: block;
-    margin-bottom: 3px;
+    flex: 0 0 auto;
+    display: inline;
+    margin: 0;
     color: var(--color-navy);
     font-size: 13px;
 }
 
+.info-card-text strong::after {
+    content: "：";
+}
+
 .info-card-text span {
-    display: block;
-    overflow-wrap: anywhere;
+    flex: 1 1 auto;
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
     color: #334155;
     font-size: 14px;
     line-height: 1.55;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .info-copy-button {
     min-height: 30px;
-    padding: 5px 9px;
+    padding: 5px 10px;
+    white-space: nowrap;
 }
 
 .info-card-actions {
@@ -984,21 +1009,23 @@ h2 {
 }
 
 .info-card-editor {
-    padding-top: 10px;
-    border-top: 1px solid var(--color-line);
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #dbe7f3;
+    border-radius: 8px;
 }
 
 .info-card-editor > summary {
     color: var(--color-navy);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
 }
 
 .info-card-form {
     display: grid;
-    gap: 14px;
-    padding: 16px;
+    gap: 16px;
+    padding: 18px;
 }
 
 .info-card-editor .info-card-form {
@@ -1008,7 +1035,7 @@ h2 {
 .info-form-grid {
     display: grid;
     grid-template-columns: minmax(180px, 1fr) auto auto;
-    gap: 12px;
+    gap: 14px;
     align-items: end;
 }
 
@@ -1024,7 +1051,11 @@ h2 {
 
 .info-bulk-import {
     display: grid;
-    gap: 9px;
+    gap: 10px;
+    padding: 12px;
+    background: #fbfcfe;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
 }
 
 .info-item-editor {
@@ -1037,6 +1068,8 @@ h2 {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .info-item-editor-list {
@@ -1049,6 +1082,10 @@ h2 {
     grid-template-columns: minmax(90px, 0.8fr) minmax(160px, 1.4fr) auto;
     gap: 8px;
     align-items: center;
+    padding: 8px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
 }
 
 .info-permission-box {
@@ -1858,10 +1895,6 @@ h2 {
 
     .info-form-grid,
     .info-item-editor-row {
-        grid-template-columns: 1fr;
-    }
-
-    .info-card-item {
         grid-template-columns: 1fr;
     }
 
