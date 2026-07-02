@@ -618,6 +618,7 @@ class DashboardPageTests(TestCase):
         self.assertContains(response, '常用信息')
         self.assertNotContains(response, 'Module Placeholder')
         self.assertContains(response, '募集资金收款账户信息')
+        self.assertContains(response, '.info-card{')
         self.assertContains(response, '户名')
         self.assertContains(response, '中信证券股份有限公司')
         self.assertContains(response, 'data-copy-value="中信证券股份有限公司"')
