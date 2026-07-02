@@ -18,8 +18,9 @@ LOOP_SECONDS = 20
 FETCH_WINDOWS = (
     (datetime_time(17, 40), datetime_time(17, 45)),
 )
-MAX_FETCH_ATTEMPTS = 2
-RETRY_AFTER_FAILURE = timedelta(minutes=10)
+MAX_FETCH_ATTEMPTS = 6
+RETRY_MIN_SECONDS = 9 * 60
+RETRY_MAX_SECONDS = 11 * 60
 
 
 class MarketYieldScheduler:
@@ -85,6 +86,10 @@ class MarketYieldScheduler:
         today = now.date()
         if self._run_date == today:
             return
+        if not self._is_local_trading_day(today):
+            self._run_date = today
+            self._target_run_at = None
+            return
         if self._attempt_date != today:
             self._attempt_date = today
             self._attempt_index = 0
@@ -95,7 +100,7 @@ class MarketYieldScheduler:
             self._target_run_at = (
                 self._random_time_in_window(today)
                 if self._attempt_index == 0
-                else now + RETRY_AFTER_FAILURE
+                else now + self._random_retry_delay()
             )
         if now >= self._target_run_at:
             result = run_market_yield_refresh(trigger='auto', requested_by='scheduler')
@@ -103,7 +108,14 @@ class MarketYieldScheduler:
                 self._run_date = today
                 return
             self._attempt_index += 1
-            self._target_run_at = now + RETRY_AFTER_FAILURE if self._attempt_index < MAX_FETCH_ATTEMPTS else None
+            self._target_run_at = (
+                now + self._random_retry_delay()
+                if self._attempt_index < MAX_FETCH_ATTEMPTS
+                else None
+            )
+
+    def _is_local_trading_day(self, day):
+        return day.weekday() < 5
 
     def _random_time_in_window(self, day):
         start_time, end_time = FETCH_WINDOWS[0]
@@ -111,6 +123,9 @@ class MarketYieldScheduler:
         end_at = timezone.make_aware(datetime.combine(day, end_time))
         seconds = max(0, int((end_at - start_at).total_seconds()))
         return start_at + timedelta(seconds=random.randint(0, seconds))
+
+    def _random_retry_delay(self):
+        return timedelta(seconds=random.randint(RETRY_MIN_SECONDS, RETRY_MAX_SECONDS))
 
 
 def should_start_market_yield_scheduler():

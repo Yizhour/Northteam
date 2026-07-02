@@ -356,7 +356,7 @@ class DashboardPageTests(TestCase):
         finally:
             schedule.clear()
 
-    def test_market_yield_scheduler_retries_ten_minutes_after_failure(self):
+    def test_market_yield_scheduler_retries_random_delay_after_failure(self):
         from dashboard.services.market_yield_scheduler import MarketYieldScheduler
 
         service = MarketYieldScheduler()
@@ -365,10 +365,10 @@ class DashboardPageTests(TestCase):
             today = today + timedelta(days=7 - today.weekday())
         before_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=39))
         in_window = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=40))
-        before_retry = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=49))
-        retry_time = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=50))
+        before_retry = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=48))
+        retry_time = timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=49))
 
-        with patch('dashboard.services.market_yield_scheduler.random.randint', return_value=0), patch(
+        with patch('dashboard.services.market_yield_scheduler.random.randint', side_effect=[0, 9 * 60]), patch(
             'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
             side_effect=[{'ok': False}, {'ok': True}],
         ) as fetch_mock:
@@ -383,6 +383,47 @@ class DashboardPageTests(TestCase):
 
         self.assertEqual(fetch_mock.call_count, 2)
         self.assertEqual(service._run_date, today)
+
+    def test_market_yield_scheduler_skips_non_trading_day_locally(self):
+        from dashboard.services.market_yield_scheduler import MarketYieldScheduler
+
+        service = MarketYieldScheduler()
+        saturday = datetime(2026, 7, 4).date()
+        run_time = timezone.make_aware(datetime.combine(saturday, datetime.min.time()).replace(hour=17, minute=40))
+
+        with patch('dashboard.services.market_yield_scheduler.run_market_yield_refresh') as fetch_mock:
+            with patch('dashboard.services.market_yield_scheduler.timezone.localtime', return_value=run_time):
+                service._run_if_due()
+
+        fetch_mock.assert_not_called()
+        self.assertEqual(service._run_date, saturday)
+
+    def test_market_yield_scheduler_stops_after_five_extra_attempts(self):
+        from dashboard.services.market_yield_scheduler import MarketYieldScheduler
+
+        service = MarketYieldScheduler()
+        today = datetime(2026, 7, 6).date()
+        run_times = [
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=40)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=49)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=17, minute=58)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=7)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=16)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=25)),
+            timezone.make_aware(datetime.combine(today, datetime.min.time()).replace(hour=18, minute=34)),
+        ]
+
+        with patch('dashboard.services.market_yield_scheduler.random.randint', side_effect=[0, 9 * 60, 9 * 60, 9 * 60, 9 * 60, 9 * 60]), patch(
+            'dashboard.services.market_yield_scheduler.run_market_yield_refresh',
+            return_value={'ok': False},
+        ) as fetch_mock:
+            with patch('dashboard.services.market_yield_scheduler.timezone.localtime', side_effect=run_times):
+                for _ in run_times:
+                    service._run_if_due()
+
+        self.assertEqual(fetch_mock.call_count, 6)
+        self.assertEqual(service._attempt_index, 6)
+        self.assertIsNone(service._target_run_at)
 
     def test_super_admin_can_open_access_control_and_admin(self):
         User.objects.create_superuser('root', 'root@example.com', 'pass12345', first_name='root')
