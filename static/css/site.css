@@ -818,12 +818,6 @@ h2 {
     flex: 1 1 460px;
 }
 
-.info-search-control {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-}
-
 .info-search-label input,
 .info-layout-form select,
 .info-form-grid input,

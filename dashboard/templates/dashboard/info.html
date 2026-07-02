@@ -6,7 +6,7 @@
 <style>
 .info-page{display:grid;gap:16px}.info-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px}.info-search-label,.info-layout-form label,.info-form-grid label,.info-bulk-import label{display:grid;gap:7px;color:#334155;font-size:13px;font-weight:700}.info-search-label{flex:1 1 460px}.info-search-label input,.info-layout-form select,.info-form-grid input,.info-bulk-import textarea,.info-item-editor-row input{width:100%;min-width:0;padding:10px 12px;color:#1f2d3d;background:#fff;border:1px solid #d8e1ec;border-radius:6px;font:inherit;font-weight:400}.info-bulk-import textarea{resize:vertical;line-height:1.6}.info-layout-form{display:flex;align-items:end;gap:8px;flex-wrap:wrap}.info-admin-create{padding:0;overflow:hidden}.info-admin-create>summary{padding:16px 18px;color:#0b223d;cursor:pointer;font-size:16px;font-weight:700}.info-admin-create[open]>summary{border-bottom:1px solid #d8e1ec}.info-card-grid{display:grid;gap:16px}.info-card-grid.columns-3{grid-template-columns:repeat(3,minmax(0,1fr))}.info-card-grid.columns-4{grid-template-columns:repeat(4,minmax(0,1fr))}.info-card-grid.columns-5{grid-template-columns:repeat(5,minmax(0,1fr))}.info-card{display:grid;gap:14px;align-content:start;min-width:0;padding:18px;background:#fff;border:1px solid #cfdceb;border-radius:8px;box-shadow:0 10px 28px rgba(18,52,90,.08)}.info-card:hover{border-color:#a9c7e4;box-shadow:0 14px 34px rgba(18,52,90,.12)}.info-card.inactive{opacity:.66}.info-card.dragging{opacity:.5;outline:2px solid #8db9df}.info-card-head{display:flex;align-items:start;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid #e2e8f0}.info-card-head h2{margin-bottom:5px;color:#0b223d;font-size:18px;line-height:1.35}.info-card-tag{display:inline-flex;margin:0 5px 5px 0;padding:3px 7px;color:#1d4f7a;background:#e8f1fa;border:1px solid #b8d5ef;border-radius:999px;font-size:12px;font-weight:700}.info-card-tag.muted{color:#637083;background:#f1f5f9;border-color:#cbd5e1}.info-drag-handle{flex:0 0 auto;color:#637083;cursor:grab;font-size:12px;font-weight:700}.info-card-items{display:grid;gap:9px}.info-card-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-height:42px;padding:8px 8px 8px 12px;background:#f8fbff;border:1px solid #dbe7f3;border-radius:6px}.info-card-text{min-width:0;display:flex;align-items:baseline;gap:4px;white-space:nowrap}.info-card-text strong{flex:0 0 auto;display:inline;margin:0;color:#12345a;font-size:13px}.info-card-text strong::after{content:"："}.info-card-text span{flex:1 1 auto;display:inline-block;min-width:0;overflow:hidden;color:#334155;font-size:14px;line-height:1.55;text-overflow:ellipsis;white-space:nowrap}.info-copy-button{min-height:30px;padding:5px 10px;white-space:nowrap}.info-card-actions{display:flex;justify-content:flex-end}.info-card-editor{padding:12px;background:#f8fafc;border:1px solid #dbe7f3;border-radius:8px}.info-card-editor>summary{color:#12345a;cursor:pointer;font-size:14px;font-weight:700}.info-card-form{display:grid;gap:16px;padding:18px}.info-card-editor .info-card-form{padding:14px 0 0}.info-form-grid{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:14px;align-items:end}.info-form-grid .wide{min-width:0}.info-form-grid label:has(input[type="checkbox"]){display:flex;align-items:center;min-height:36px}.info-bulk-import{display:grid;gap:10px;padding:12px;background:#fbfcfe;border:1px solid #e2e8f0;border-radius:8px}.info-item-editor{display:grid;gap:9px}.info-item-editor-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0}.info-item-editor-list{display:grid;gap:8px}.info-item-editor-row{display:grid;grid-template-columns:minmax(90px,.8fr) minmax(160px,1.4fr) auto;gap:8px;align-items:center;padding:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px}.info-permission-box{display:grid;gap:9px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px}.info-permission-box strong{color:#334155;font-size:13px}.info-user-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;max-height:180px;overflow:auto}.info-user-list label{display:flex;align-items:center;gap:6px;color:#334155;font-size:13px}.info-form-actions,.info-delete-form{display:flex;justify-content:flex-end;gap:8px}.info-delete-form{margin-top:10px}.info-order-save{width:fit-content}.info-empty-state{grid-column:1/-1;padding:18px;color:#637083;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;text-align:center}@media(max-width:900px){.info-toolbar{display:grid;align-items:stretch}.info-layout-form{align-items:stretch}.info-card-grid.columns-3,.info-card-grid.columns-4,.info-card-grid.columns-5{grid-template-columns:1fr}.info-form-grid,.info-item-editor-row{grid-template-columns:1fr}.info-card-actions,.info-form-actions,.info-delete-form{justify-content:stretch}}
 .info-card{gap:10px;padding:14px}.info-card-head{padding-bottom:8px}.info-card-head h2{font-size:16px;margin-bottom:2px}.info-card-tag{margin-bottom:2px;padding:2px 6px}.info-card-items{gap:5px}.info-card-item{min-height:34px;padding:5px 6px 5px 10px}.info-card-text strong{font-size:12px}.info-card-text span{font-size:13px;line-height:1.35}.info-copy-button{min-height:26px;padding:3px 8px;font-size:12px}.info-copy-all{min-height:32px;padding:6px 10px}.info-card-editor{padding:9px}.info-card-form{gap:12px;padding:14px}.info-card-editor .info-card-form{padding-top:10px}.info-bulk-import{gap:8px;padding:10px}.info-item-editor{gap:7px}.info-item-editor-row{padding:6px}.info-permission-box{padding:10px}
-.info-search-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.info-permission-box>span{color:#637083;font-size:12px;line-height:1.5}
+.info-permission-box>span{color:#637083;font-size:12px;line-height:1.5}
 </style>
 <section class="page-heading compact-heading">
     <p class="eyebrow">Common Info</p>
@@ -26,10 +26,7 @@
     <div class="info-toolbar panel">
         <label class="info-search-label">
             <span>搜索</span>
-            <span class="info-search-control">
-                <input id="infoSearchInput" type="search" placeholder="搜索标题、键或内容">
-                <button class="plain-button" id="infoSearchButton" type="button">搜索</button>
-            </span>
+            <input id="infoSearchInput" type="search" placeholder="搜索标题、键或内容">
         </label>
         {% if can_manage_info_cards %}
             <form class="info-layout-form" method="post" action="{% url 'dashboard:info_card_layout_update' %}">
@@ -75,8 +72,8 @@
         {% for card in info_cards %}
             <article class="info-card{% if not card.is_active %} inactive{% endif %}"
                      data-card-id="{{ card.id }}"
-                     data-title="{{ card.title|lower }}"
-                     data-search="{{ card.search_text|lower }}"
+                     data-title-text="{{ card.title|lower }}"
+                     data-content-text="{{ card.content_search_text|lower }}"
                      {% if can_manage_info_cards %}draggable="true"{% endif %}>
                 <div class="info-card-head">
                     <div>
@@ -144,7 +141,6 @@
     }
 
     var searchInput = document.getElementById('infoSearchInput');
-    var searchButton = document.getElementById('infoSearchButton');
     var searchEmpty = document.getElementById('infoSearchEmpty');
     var grid = document.getElementById('infoCardGrid');
     var orderForm = document.getElementById('infoOrderForm');
@@ -237,8 +233,8 @@
                     visibleCount += 1;
                     return;
                 }
-                var titleHit = (card.dataset.title || '').indexOf(query) >= 0;
-                var contentHit = (card.dataset.search || '').indexOf(query) >= 0;
+                var titleHit = (card.dataset.titleText || '').indexOf(query) >= 0;
+                var contentHit = (card.dataset.contentText || '').indexOf(query) >= 0;
                 card.hidden = !titleHit && !contentHit;
                 if (!card.hidden) {
                     visibleCount += 1;
@@ -253,10 +249,6 @@
     if (searchInput && grid) {
         searchInput.addEventListener('input', applySearch);
         searchInput.addEventListener('search', applySearch);
-    }
-
-    if (searchButton) {
-        searchButton.addEventListener('click', applySearch);
     }
 
     page.addEventListener('click', function (event) {

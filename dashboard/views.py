@@ -380,8 +380,8 @@ def info(request):
     for card in cards:
         card.allowed_user_ids = {permission.user_id for permission in card.permissions.all()}
         card.copy_text = '\n'.join(f'{item.key}：{item.value}' for item in card.items.all())
-        card.search_text = ' '.join(
-            [card.title] + [item.key for item in card.items.all()] + [item.value for item in card.items.all()]
+        card.content_search_text = ' '.join(
+            [item.key for item in card.items.all()] + [item.value for item in card.items.all()]
         )
 
     context = base_context(request, '常用信息')
