@@ -38,6 +38,17 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function columnClass(column) {
+  if (column === "项目名称") return "project-col";
+  if (column.includes("日期") || column.includes("截止日")) return "date-col";
+  return "";
+}
+
+function cellAttrs(column) {
+  const klass = columnClass(column);
+  return klass ? ` class="${klass}"` : "";
+}
+
 function input(value = "", attrs = "") {
   return `<input ${attrs} value="${escapeHtml(value)}">`;
 }
@@ -107,8 +118,8 @@ function renderPreview() {
   const columns = state.preview.columns || [];
   const rows = state.preview.rows || [];
   $("previewTable").innerHTML =
-    `<thead><tr>${columns.map((col) => `<th>${escapeHtml(col)}</th>`).join("")}</tr></thead>` +
-    `<tbody>${rows.map((row) => `<tr>${columns.map((col) => `<td>${escapeHtml(row[col] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    `<thead><tr>${columns.map((col) => `<th${cellAttrs(col)}>${escapeHtml(col)}</th>`).join("")}</tr></thead>` +
+    `<tbody>${rows.map((row) => `<tr>${columns.map((col) => `<td${cellAttrs(col)}>${escapeHtml(row[col] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody>`;
 }
 
 function renderColumns() {
@@ -121,7 +132,7 @@ function renderColumns() {
   $("columnsTable").innerHTML = `
     <thead><tr><th>原数据列名</th><th>监控日期</th><th>事件颜色</th><th>短信显示文本</th><th>邮件/首页展示</th></tr></thead>
     <tbody>${columns.map((col, idx) => `<tr data-col="${escapeHtml(col)}">
-      <td><strong>${escapeHtml(col)}</strong></td>
+      <td${cellAttrs(col)}><strong>${escapeHtml(col)}</strong></td>
       <td><input class="col-date" type="checkbox" ${dateColumns.has(col) ? "checked" : ""}></td>
       <td><input class="col-color" type="color" value="${escapeHtml(colors[col] || palette[idx % palette.length])}"></td>
       <td>${input(smsTexts[col] || "", 'class="col-sms"')}</td>

@@ -265,10 +265,14 @@ class DashboardPageTests(TestCase):
         self.assertTrue(payload['ok'])
         self.assertEqual(payload['data']['total_rows'], 4)
         self.assertEqual(overview['owner_name'], '潘学超')
-        self.assertEqual(overview['archive_count'], 1)
+        self.assertEqual(overview['archive_count'], 2)
         self.assertEqual(overview['overdue_count'], 2)
         self.assertEqual(overview['association_warning_count'], 1)
         self.assertIn('潘学超本周黄底项目', overview['archive_events'][0]['display_data']['项目名称'])
+        self.assertEqual(
+            [item['label'] for item in overview['archive_events'][0]['event_types']],
+            ['归档流程发起截止日', '逾期提醒', '周五距离截止日不到10工作日'],
+        )
         self.assertEqual({item['alert_level'] for item in overview['overdue_events']}, {'yellow', 'red'})
         self.assertContains(tools_response, '底稿报送提醒')
 
@@ -287,7 +291,10 @@ class DashboardPageTests(TestCase):
         self.assertEqual(page_response.status_code, 200)
         self.assertContains(page_response, '底稿报送提醒')
         self.assertContains(page_response, 'id="manuscriptUploadFile"')
+        self.assertContains(page_response, '选择文件后自动解析')
+        self.assertNotContains(page_response, 'manuscript-tool-link')
         self.assertContains(page_response, '本周需要提归档流程')
+        self.assertNotContains(page_response, 'Excel 标色逾期提醒')
         self.assertTrue(payload['data']['manuscript_reminder']['available'])
         self.assertEqual(payload['data']['manuscript_reminder']['overdue_count'], 2)
 
@@ -528,6 +535,7 @@ class DashboardPageTests(TestCase):
         self.assertEqual(access_response.status_code, 200)
         self.assertContains(access_response, '权限控制台')
         self.assertContains(access_response, '超级管理员')
+        self.assertContains(access_response, '底稿报送提醒')
 
         admin_response = self.client.get(reverse('admin:index'))
         self.assertEqual(admin_response.status_code, 200)
