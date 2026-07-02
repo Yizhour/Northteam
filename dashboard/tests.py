@@ -268,11 +268,13 @@ class DashboardPageTests(TestCase):
         self.assertEqual(overview['archive_count'], 2)
         self.assertEqual(overview['overdue_count'], 2)
         self.assertEqual(overview['association_warning_count'], 1)
+        self.assertEqual(overview['other_count'], 1)
         self.assertIn('潘学超本周黄底项目', overview['archive_events'][0]['display_data']['项目名称'])
         self.assertEqual(
             [item['label'] for item in overview['archive_events'][0]['event_types']],
-            ['归档流程发起截止日', '逾期提醒', '周五距离截止日不到10工作日'],
+            ['归档流程发起截止日', '逾期提醒', '本周五距离截止日5工作日'],
         )
+        self.assertIn('潘学超白底远期项目', overview['other_rows'][0]['display_data']['项目名称'])
         self.assertEqual({item['alert_level'] for item in overview['overdue_events']}, {'yellow', 'red'})
         self.assertContains(tools_response, '底稿报送提醒')
 
@@ -294,9 +296,13 @@ class DashboardPageTests(TestCase):
         self.assertContains(page_response, '选择文件后自动解析')
         self.assertNotContains(page_response, 'manuscript-tool-link')
         self.assertContains(page_response, '本周需要提归档流程')
+        self.assertContains(page_response, '其他')
+        self.assertContains(page_response, '暂无提醒 1 项')
         self.assertNotContains(page_response, 'Excel 标色逾期提醒')
+        self.assertNotContains(page_response, '周五距离协会报送截止日不足')
         self.assertTrue(payload['data']['manuscript_reminder']['available'])
         self.assertEqual(payload['data']['manuscript_reminder']['overdue_count'], 2)
+        self.assertEqual(payload['data']['manuscript_reminder']['other_count'], 1)
 
     def test_mailer_deduplicates_receivers_before_sending(self):
         from tools.bondreminder.app import mailer

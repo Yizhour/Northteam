@@ -76,7 +76,20 @@ class ManuscriptReminder:
         return rows
 
     def _display_data(self, data, display_columns):
-        return {column: str(data.get(column, "") or "") for column in display_columns if column in data}
+        date_columns = set(self.config.get("date_columns", []))
+        date_columns.add(self.config.get("archive_deadline_column", "归档流程发起截止日"))
+        date_columns.add(self.config.get("association_deadline_column", "协会报送截止日"))
+        display_data = {}
+        for column in display_columns:
+            if column not in data:
+                continue
+            if column in date_columns:
+                parsed = self._parse_date(data.get(column))
+                if parsed:
+                    display_data[column] = str(parsed)
+                    continue
+            display_data[column] = str(data.get(column, "") or "")
+        return display_data
 
     def collect_overview(self, start_date=None, end_date=None):
         display_columns = [col for col in self.config.get("display_columns", [])]
@@ -88,6 +101,7 @@ class ManuscriptReminder:
                 "archive_events": [],
                 "overdue_events": [],
                 "association_warning_events": [],
+                "other_rows": [],
             }
         if start_date is None or end_date is None:
             start_date, end_date = self.get_week_range()
@@ -113,15 +127,18 @@ class ManuscriptReminder:
                 "archive_events": [],
                 "overdue_events": [],
                 "association_warning_events": [],
+                "other_rows": [],
                 "archive_count": 0,
                 "overdue_count": 0,
                 "association_warning_count": 0,
+                "other_count": 0,
             }
 
-        archive_events = []
         overdue_events = []
         association_warning_events = []
         summary_events_by_row = {}
+        seen_summary_rows = set()
+        row_display_items = []
 
         def summary_for(item, base_event):
             key = str(base_event.get("source_row") or item.get("row_index"))
@@ -135,6 +152,7 @@ class ManuscriptReminder:
                     "color": self.default_colors[0],
                     "sort_date": "9999-12-31",
                 }
+            seen_summary_rows.add(key)
             return summary_events_by_row[key]
 
         def add_summary_type(item, base_event, event_type, color, date_value=None, weekday=""):
@@ -157,6 +175,7 @@ class ManuscriptReminder:
                 "display_data": self._display_data(data, display_columns),
                 "source_row": style.get("excel_row") or item.get("row_index"),
             }
+            row_display_items.append(base_event)
 
             if archive_date and start_date <= archive_date <= end_date:
                 add_summary_type(
@@ -184,21 +203,35 @@ class ManuscriptReminder:
                 remaining = self._business_days_between(friday, association_date)
                 if 0 <= remaining < threshold:
                     association_color = colors.get(association_column, self.default_colors[4])
+                    association_label = f"本周五距离截止日{remaining}工作日"
                     association_event = {
                         **base_event,
                         "date_str": str(association_date),
                         "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][association_date.weekday()],
-                        "event_type": f"周五距离截止日不到{threshold}工作日",
+                        "event_type": association_label,
                         "remaining_workdays": remaining,
                         "color": association_color,
                     }
                     association_warning_events.append(association_event)
-                    add_summary_type(item, base_event, f"周五距离截止日不到{threshold}工作日", association_color)
+                    add_summary_type(item, base_event, association_label, association_color)
 
         archive_events = list(summary_events_by_row.values())
         archive_events.sort(key=lambda item: (item["sort_date"], item["source_row"]))
         overdue_events.sort(key=lambda item: (item["alert_level"], item["date_str"]))
         association_warning_events.sort(key=lambda item: (item["remaining_workdays"], item["date_str"]))
+        other_rows = [
+            {
+                **item,
+                "date_str": "",
+                "weekday": "",
+                "event_type": "无需提醒",
+                "event_types": [],
+                "color": "#94a3b8",
+            }
+            for item in row_display_items
+            if str(item.get("source_row")) not in seen_summary_rows
+        ]
+        other_rows.sort(key=lambda item: item["source_row"])
         return {
             "available": True,
             "configured": True,
@@ -214,9 +247,11 @@ class ManuscriptReminder:
             "archive_events": archive_events,
             "overdue_events": overdue_events,
             "association_warning_events": association_warning_events,
+            "other_rows": other_rows,
             "archive_count": len(archive_events),
             "overdue_count": len(overdue_events),
             "association_warning_count": len(association_warning_events),
+            "other_count": len(other_rows),
         }
 
     def run_weekly_check(self):
@@ -261,7 +296,6 @@ class ManuscriptReminder:
         display_columns = overview.get("display_columns", [])
         sections = [
             ("本周需要提归档流程", grouped_events.get("archive", [])),
-            ("周五距离协会报送截止日不足阈值", grouped_events.get("association", [])),
         ]
         html = f"""
         <html><head><style>

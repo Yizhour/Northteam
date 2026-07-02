@@ -40,6 +40,9 @@ function escapeHtml(value) {
 
 function columnClass(column) {
   if (column === "项目名称") return "project-col";
+  if (column === "底稿报送阶段") return "stage-col";
+  if (column === "是否已完成归档" || column === "是否已报送协会") return "status-col";
+  if (column === "项目负责人") return "owner-col";
   if (column.includes("日期") || column.includes("截止日")) return "date-col";
   return "";
 }
